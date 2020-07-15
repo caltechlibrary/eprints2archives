@@ -16,6 +16,7 @@ file "LICENSE" for more information.
 
 from   datetime import datetime as dt
 import plac
+import sys
 
 from   eprints2archives import print_version
 from   eprints2archives.cpus import cpus
@@ -198,19 +199,19 @@ Command-line options summary
     ui = manager = exception = None
     try:
         ui = UI('eprints2archives', 'send EPrints records to web archives',
-                use_gui = not no_gui, use_color = not no_color, quiet)
+                use_gui = not no_gui, use_color = not no_color, be_quiet = quiet)
         auth = AuthHandler(user = None if user == 'U' else user,
                            pswd = None if password == 'P' else password,
-                           not no_keyring)
+                           use_keyring = not no_keyring)
         body = MainBody(api_url = None if api_url == 'A' else api_url,
                         id_list = None if id_list == 'I' else id_list,
                         lastmod = None if lastmod == 'L' else lastmod,
                         status  = 'any' if status == 'S' else status,
-                        dest    = 'all' if dest = 'D' else dest,
+                        dest    = 'all' if dest == 'D' else dest,
                         delay   = int(delay),
-                        threads = max(1, cpus()//2 if threads == 'T' else int(threads))
+                        threads = max(1, cpus()//2 if threads == 'T' else int(threads)),
                         auth_handler = auth,
-                        keep_going)
+                        errors_ok = keep_going)
         manager = RunManager()
         manager.run(ui, body)
         exception = body.exception
