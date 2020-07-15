@@ -53,6 +53,7 @@ with datetime.strftime().'''
     services   = ('print list of known services and exit',                  'flag',   'v'),
     delay      = ('wait time bet. requests to services (default: 100 ms)',  'option', 'y'),
     no_color   = ('do not color-code terminal output',                      'flag',   'C'),
+    no_gui     = ('do not start the GUI interface (default: do)',           'flag',   'G'),
     no_keyring = ('do not store credentials in a keyring service',          'flag',   'K'),
     version    = ('print version info and exit',                            'flag',   'V'),
     debug      = ('write detailed trace to "OUT" ("-" means console)',      'option', '@'),
@@ -60,8 +61,8 @@ with datetime.strftime().'''
 
 def main(api_url = 'A', dest = 'D', id_list = 'I', keep_going = False,
          lastmod = 'L', quiet = False, user = 'U', password = 'P', status = 'S',
-         threads = 'T', services = False, delay = 100, no_color = False,
-         no_keyring = False, version = False, debug = 'OUT'):
+         threads = 'T', services = False, delay = 100, no_gui = False,
+         no_color = False, no_keyring = False, version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
 This program contacts an EPrints REST server whose network API is accessible
@@ -194,7 +195,7 @@ Command-line options summary
         exit(0)
 
     if services:
-        inform('Known services: {}', ', '.join(services_list()))
+        print('Known services:', ', '.join(services_list()))
         exit(0)
 
     # Do the real work --------------------------------------------------------
@@ -238,7 +239,6 @@ Command-line options summary
             ui.stop()
         if manager:
             manager.stop()
-    inform('Done.')
     if __debug__: log('exiting')
     exit(1 if exception else 0)
 
