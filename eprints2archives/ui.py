@@ -1,4 +1,5 @@
-'''ui.py: user interface
+'''
+ui.py: user interface
 
 Explanation of the architecture
 -------------------------------
@@ -52,7 +53,6 @@ Copyright
 Copyright (c) 2020 by the California Institute of Technology.  This code is
 open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
-
 '''
 
 import getpass
@@ -73,7 +73,6 @@ import webbrowser
 from .app_frame import AppFrame
 from .debug import log
 from .exceptions import *
-from .files import readable
 from .logo import getLogoIcon
 from .styled import Styled
 
