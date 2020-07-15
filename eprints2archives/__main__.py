@@ -18,10 +18,14 @@ from   datetime import datetime as dt
 import plac
 import sys
 
+import eprints2archives
 from   eprints2archives import print_version
-from   eprints2archives.cpus import cpus
-from   eprints2archives.exceptions import *
-from   eprints2archives.services import services_list
+from   .auth import AuthHandler
+from   .cpus import cpus
+from   .debug import set_debug, log
+from   .exceptions import *
+from   .services import services_list
+from   .ui import UI, inform, warn, alert, alert_fatal
 
 
 # Constants.
