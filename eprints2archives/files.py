@@ -27,7 +27,6 @@ import zipfile
 from   zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
 
 from .debug import log
-from .ui import warn, alert
 
 
 # Constants.
