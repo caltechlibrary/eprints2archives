@@ -16,7 +16,7 @@ file "LICENSE" for more information.
 
 from .internetarchive import SendToInternetArchive
 from .archivetoday import SendToArchiveToday
-from .archivest import SentToArchiveST
+from .archivest import SendToArchiveST
 
 KNOWN_SERVICES = {
     'internetarchive' : SendToInternetArchive,
