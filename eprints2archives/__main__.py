@@ -14,8 +14,21 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   datetime import datetime as dt
 import plac
+
 from   eprints2archives import print_version
+from   eprints2archives.cpus import cpus
+from   eprints2archives.exceptions import *
+from   eprints2archives.services import services_list
+
+
+# Constants.
+# .............................................................................
+
+_DATE_FORMAT = '%b %d %Y %H:%M:%S %Z'
+'''Format in which lastmod date is printed back to the user. The value is used
+with datetime.strftime().'''
 
 
 # Main program.
@@ -23,28 +36,27 @@ from   eprints2archives import print_version
 
 @plac.annotations(
     api_url    = ('the URL for the REST API of the EPrints server',         'option', 'a'),
-    processes  = ('max number of processes to use (default: #cores/2)',     'option', 'c'),
+    dest       = ('send to destination service "D" (default: "all")',       'option', 'd'),
     id_list    = ('list of EPrint record identifiers (can be a file)',      'option', 'i'),
     keep_going = ('do not stop if missing records or errors encountered',   'flag',   'k'),
-    lastmod    = ('only get records modified after given date/time',        'option', 'l'),
+    lastmod    = ('only get EPrints records modified after given date',     'option', 'l'),
     quiet      = ('do not print informational messages while working',      'flag',   'q'),
     user       = ('EPrints server user login name "U"',                     'option', 'u'),
     password   = ('EPrints server user password "P"',                       'option', 'p'),
     status     = ('only get records whose status is in the list "S"',       'option', 's'),
-    to_service = ('send records to list of services "T" (default: "all")',  'option', 't'),
-    services   = ('print list of known services',                           'flag',   'v'),
+    threads    = ('number of threads to use (default: #cores/2)',           'option', 't'),
+    services   = ('print list of known services and exit',                  'flag',   'v'),
     delay      = ('wait time bet. requests to services (default: 100 ms)',  'option', 'y'),
     no_color   = ('do not color-code terminal output',                      'flag',   'C'),
     no_keyring = ('do not store credentials in a keyring service',          'flag',   'K'),
-    reset_keys = ('reset user and password used',                           'flag',   'R'),
     version    = ('print version info and exit',                            'flag',   'V'),
     debug      = ('write detailed trace to "OUT" ("-" means console)',      'option', '@'),
 )
 
-def main(api_url = 'A', processes = 'C', id_list = 'I', keep_going = False,
+def main(api_url = 'A', dest = 'D', id_list = 'I', keep_going = False,
          lastmod = 'L', quiet = False, user = 'U', password = 'P', status = 'S',
-         to_service = 'T', services = False, delay = 100, no_color = False,
-         no_keyring = False, reset_keys = False, version = False, debug = 'OUT'):
+         threads = 'T', services = False, delay = 100, no_color = False,
+         no_keyring = False, version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
 This program contacts an EPrints REST server whose network API is accessible
@@ -114,15 +126,11 @@ or /K argument is given) store them in the user's keyring/keychain so that it
 does not have to ask again in the future. It is also possible to supply the
 information directly on the command line using the -u and -p options (or /u
 and /p on Windows), but this is discouraged because it is insecure on
-multiuser computer systems. If a given EPrints server does not require a user
-name and password, do not use -u or -p and supply blank values when prompted
-for them by eprints2archives. (Empty user name and password are allowed values.)
-
-To reset the user name and password (e.g., if a mistake was made the last
-time and the wrong credentials were stored in the keyring/keychain system),
-add the -R (or /R on Windows) command-line argument to a command. When
-eprints2archives is run with this option, it will query for the user name and
-password again even if an entry already exists in the keyring or keychain.
+multiuser computer systems. (However, if you need to reset the user name and/or
+password for some reason, use -u with a user name and let it prompt for a
+password again.)  If a given EPrints server does not require a user name and
+password, do not use -u or -p and supply blank values when prompted for them
+by eprints2archives. (Empty user name and password are allowed values.)
 
 Specifying where to send records
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,7 +138,7 @@ Specifying where to send records
 Eprints2archives has a set of built-in adapters to interact with a number of
 known public web archives. To learn which services eprints2archives knows
 about, use the option -v (or /v on Windows). By default, the program will
-send EPrints record URLs to all the known services. The option -t (or /t on
+send EPrints record URLs to all the known services. The option -d (or /d on
 Windows) can be used to select one or a list of services instead. Lists of
 services should be separated by commas; e.g., "internetarchive,archive.today".
 
@@ -138,7 +146,7 @@ Eprints2archives will contact the EPrints server serially, but it will use
 parallel process threads to send records to archiving services, with one
 thread per service. By default the maximum number of threads used is equal
 to 1/2 of the number of cores on the computer it is running on. The option
--c (or /c on Windows) can be used to change this number.
+-t (or /t on Windows) can be used to change this number.
 
 Other command-line arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,21 +176,83 @@ and other information, and exit without doing anything else.
 Command-line options summary
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 '''
-    # Initial setup -----------------------------------------------------------
-
-    # Our defaults are to do things like color the output, which means the
-    # command line flags make more sense as negated values (e.g., "no-color").
-    # However, dealing with negated variables in our code is confusing, so:
-    use_color   = not no_color
-    use_keyring = not no_keyring
-    debugging   = debug != 'OUT'
-
     # Preprocess arguments and handle early exits -----------------------------
 
+    debugging = debug != 'OUT'
     if debugging:
         set_debug(True, debug)
         import faulthandler
         faulthandler.enable()
+
     if version:
         print_version()
-        exit()
+        exit(0)
+
+    if services:
+        inform('Known services: {}', ', '.join(services_list()))
+        exit(0)
+
+    # Do the real work --------------------------------------------------------
+
+    if __debug__: log('='*8 + ' started {}' + '='*8, dt.now().strftime(_DATE_FORMAT))
+    ui = manager = exception = None
+    try:
+        ui = UI('eprints2archives', 'send EPrints records to web archives',
+                use_gui = not no_gui, use_color = not no_color, quiet)
+        auth = AuthHandler(user = None if user == 'U' else user,
+                           pswd = None if password == 'P' else password,
+                           not no_keyring)
+        body = MainBody(api_url = None if api_url == 'A' else api_url,
+                        id_list = None if id_list == 'I' else id_list,
+                        lastmod = None if lastmod == 'L' else lastmod,
+                        status  = 'any' if status == 'S' else status,
+                        dest    = 'all' if dest = 'D' else dest,
+                        delay   = int(delay),
+                        threads = max(1, cpus()//2 if threads == 'T' else int(threads))
+                        auth_handler = auth,
+                        keep_going)
+        manager = RunManager()
+        manager.run(ui, body)
+        exception = body.exception
+    except Exception as ex:
+        # MainBody exceptions are caught in its thread, so this is something else.
+        exception = sys.exc_info()
+
+    # Try to deal with exceptions gracefully ----------------------------------
+
+    if exception and type(exception[1]) in [KeyboardInterrupt, UserCancelled]:
+        if __debug__: log('received {}', exception[1].__class__.__name__)
+    elif exception:
+        from traceback import format_exception
+        ex_type = str(exception[1])
+        details = ''.join(format_exception(*exception))
+        if __debug__: log('Exception: {}\n{}', ex_type, details)
+        if debugging:
+            import pdb; pdb.set_trace()
+        if ui:
+            ui.stop()
+        if manager:
+            manager.stop()
+    inform('Done.')
+    if __debug__: log('exiting')
+    exit(1 if exception else 0)
+
+
+# Main entry point.
+# ......................................................................
+
+# On windows, we want plac to use slash intead of hyphen for cmd-line options.
+if sys.platform.startswith('win'):
+    main.prefix_chars = '/'
+
+# The following allows users to invoke this using "python3 -m eprints2archives".
+if __name__ == '__main__':
+    plac.call(main)
+
+
+# For Emacs users
+# ......................................................................
+# Local Variables:
+# mode: python
+# python-indent-offset: 4
+# End:
