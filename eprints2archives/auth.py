@@ -67,6 +67,7 @@ class AuthHandler():
             if k_user is not None:
                 tmp_user = k_user
                 tmp_pswd = k_pswd
+        cancel = False
         if not all([tmp_pswd, tmp_user]):
             tmp_user, tmp_pswd, cancel = login_details(text, tmp_user, tmp_pswd)
         if cancel:
