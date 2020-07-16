@@ -42,6 +42,7 @@ def cpus():
         if m:
             res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
             if res > 0:
+                if __debug__: log('cpu count appears to be {}', res)
                 return res
     except IOError:
         pass
@@ -50,7 +51,9 @@ def cpus():
     try:
         import multiprocessing
         if __debug__: log('trying multiprocessing package to get CPU count')
-        return multiprocessing.cpu_count()
+        count = multiprocessing.cpu_count()
+        if __debug__: log('cpu count appears to be {}', count)
+        return count
     except (ImportError, NotImplementedError):
         pass
 
@@ -67,6 +70,7 @@ def cpus():
         if __debug__: log('trying SC_NPROCESSORS_ONLN to get CPU count')
         res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except (AttributeError, ValueError):
         pass
@@ -76,6 +80,7 @@ def cpus():
         res = int(os.environ['NUMBER_OF_PROCESSORS'])
         if __debug__: log('trying NUMBER_OF_PROCESSORS to get CPU count')
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except (KeyError, ValueError):
         pass
@@ -87,6 +92,7 @@ def cpus():
         runtime = Runtime.getRuntime()
         res = runtime.availableProcessors()
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except ImportError:
         pass
@@ -99,6 +105,7 @@ def cpus():
         scStdout = sysctl.communicate()[0]
         res = int(scStdout)
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except (OSError, ValueError):
         pass
@@ -108,6 +115,7 @@ def cpus():
         if __debug__: log('trying /proc/cpuinfo to get CPU count')
         res = open('/proc/cpuinfo').read().count('processor\t:')
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except IOError:
         pass
@@ -121,6 +129,7 @@ def cpus():
             if re.match(r'^cpuid@[0-9]+$', pd):
                 res += 1
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except OSError:
         pass
@@ -138,8 +147,10 @@ def cpus():
         while '\ncpu' + str(res) + ':' in dmesg:
             res += 1
         if res > 0:
+            if __debug__: log('cpu count appears to be {}', res)
             return res
     except OSError:
         pass
 
+    if __debug__: log('unable to get cpu count; defaulting to 1')
     return 1
