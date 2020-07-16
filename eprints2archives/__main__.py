@@ -15,6 +15,8 @@ file "LICENSE" for more information.
 '''
 
 from   datetime import datetime as dt
+import os
+from   os import path
 import plac
 import sys
 
@@ -22,18 +24,15 @@ import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
 from   .cpus import cpus
+from   .data_helpers import DATE_FORMAT, flatten, expand_range, parse_datetime
 from   .debug import set_debug, log
 from   .exceptions import *
+from   .exit_codes import ExitCode
+from   .files import readable
+from   .main_body import MainBody
+from   .run_manager import RunManager
 from   .services import services_list
 from   .ui import UI, inform, warn, alert, alert_fatal
-
-
-# Constants.
-# .............................................................................
-
-_DATE_FORMAT = '%b %d %Y %H:%M:%S %Z'
-'''Format in which lastmod date is printed back to the user. The value is used
-with datetime.strftime().'''
 
 
 # Main program.
@@ -154,6 +153,20 @@ thread per service. By default the maximum number of threads used is equal
 to 1/2 of the number of cores on the computer it is running on. The option
 -t (or /t on Windows) can be used to change this number.
 
+Return values
+~~~~~~~~~~~~~
+
+This program exits with a return code of 0 if no problems are encountered.
+It returns a nonzero value otherwise, following conventions used in shells
+such as bash which only understand return code values of 0 to 255. The
+following table lists the possible return values:
+
+    0 = no errors were encountered -- success
+    1 = no network detected -- cannot proceed
+    2 = encountered a bad or missing value for an option
+    3 = the user interrupted the program's execution
+    4 = an exception or fatal error occurred
+
 Other command-line arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -200,7 +213,7 @@ Command-line options summary
 
     # Do the real work --------------------------------------------------------
 
-    if __debug__: log('='*8 + ' started {}' + '='*8, dt.now().strftime(_DATE_FORMAT))
+    if __debug__: log('='*8 + ' started {}' + '='*8, dt.now().strftime(DATE_FORMAT))
     ui = manager = exception = None
     try:
         ui = UI('eprints2archives', 'send EPrints records to web archives',
@@ -226,21 +239,27 @@ Command-line options summary
 
     # Try to deal with exceptions gracefully ----------------------------------
 
-    if exception and type(exception[1]) in [KeyboardInterrupt, UserCancelled]:
-        if __debug__: log('received {}', exception[1].__class__.__name__)
-    elif exception:
-        from traceback import format_exception
-        ex_type = str(exception[1])
-        details = ''.join(format_exception(*exception))
-        if __debug__: log('Exception: {}\n{}', ex_type, details)
-        if debugging:
-            import pdb; pdb.set_trace()
-        if ui:
-            ui.stop()
-        if manager:
-            manager.stop()
+    exit_code = ExitCode.success
+    if exception:
+        if type(exception[1]) == CannotProceed:
+            exit_code = exception[1].args[0]
+        elif type(exception[1]) in [KeyboardInterrupt, UserCancelled]:
+            if __debug__: log('received {}', exception[1].__class__.__name__)
+            exit_code = ExitCode.user_interrupt
+        else:
+            exit_code = ExitCode.exception
+            from traceback import format_exception
+            ex_type = str(exception[1])
+            details = ''.join(format_exception(*exception))
+            if __debug__: log('Exception: {}\n{}', ex_type, details)
+            if debugging:
+                import pdb; pdb.set_trace()
+            if ui:
+                ui.stop()
+            if manager:
+                manager.stop()
     if __debug__: log('exiting')
-    exit(1 if exception else 0)
+    exit(exit_code.value)
 
 
 # Main entry point.
