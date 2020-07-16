@@ -14,16 +14,16 @@ open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+class CannotProceed(Exception):
+    '''A recognizable condition caused an early exit from the program.'''
+    pass
+
 class UserCancelled(Exception):
     '''The user elected to cancel/quit the program.'''
     pass
 
 class NetworkFailure(Exception):
     '''Unrecoverable problem involving network operations.'''
-    pass
-
-class BadURL(Exception):
-    '''Incorrect or malformed URL.'''
     pass
 
 class NoContent(Exception):
