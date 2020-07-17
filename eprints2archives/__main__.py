@@ -18,6 +18,7 @@ from   datetime import datetime as dt
 import os
 from   os import path
 import plac
+from   rich.traceback import install as install_rich_traceback
 import sys
 
 import eprints2archives
@@ -200,6 +201,7 @@ Command-line options summary
     debugging = debug != 'OUT'
     if debugging:
         set_debug(True, debug)
+        install_rich_traceback()
         import faulthandler
         faulthandler.enable()
 
