@@ -25,7 +25,17 @@ KNOWN_SERVICES = {
 }
 
 # Save this list to avoid recreating it all the time.
-SERVICES_LIST = sorted(KNOWN_SERVICES.keys())
+SERVICES_NAMES = sorted(KNOWN_SERVICES.keys())
+SERVICE_OBJECTS = KNOWN_SERVICES.values()
 
-def services_list():
-    return SERVICES_LIST
+def service_names():
+    return SERVICES_NAMES
+
+def service_interfaces():
+    return SERVICE_OBJECTS
+
+def service_by_name(name):
+    if name.lower() in SERVICE_NAMES:
+        return KNOWN_SERVICES[name.lower()]
+    else:
+        return None
