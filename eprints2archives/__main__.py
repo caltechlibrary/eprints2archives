@@ -259,7 +259,7 @@ Command-line options summary
             if manager:
                 manager.stop()
     if __debug__: log('exiting')
-    exit(exit_code.value)
+    exit(exit_code.value[0])
 
 
 # Main entry point.

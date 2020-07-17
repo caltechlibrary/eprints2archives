@@ -14,12 +14,12 @@ open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-from enum import Enum, unique
+from aenum import Enum, unique
 
 @unique
 class ExitCode(Enum):
-    success        = 0
-    no_net         = 1
-    bad_arg        = 2
-    user_interrupt = 3
-    exception      = 4
+    success        = 0, 'success -- program completed normally'
+    no_net         = 1, 'no network detected -- cannot proceed'
+    bad_arg        = 2, 'encountered a bad or missing value for an option'
+    user_interrupt = 3, 'the user interrupted execution'
+    exception      = 4, 'an exception or fatal error occurred'
