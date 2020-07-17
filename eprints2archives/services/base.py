@@ -20,25 +20,11 @@ file "LICENSE" for more information.
 # Basics for the __eq__ etc. methods came from
 # https://stackoverflow.com/questions/1061283/lt-instead-of-cmp
 
-class TextRecognition(object):
+class Service(object):
 
-    # The following methods need to be overridden by subclasses.
-    # .........................................................................
-
-    def __init__(self):
-        pass
-
-
-    def name(self):
-        '''Returns the canonical internal name for this service.'''
-        pass
-
-
-    def name_color(self):
-        '''Returns a color code for this service.  See the color definitions
-        in messages.py.'''
-        pass
-
+    label = ''
+    name = ''
+    color = ''
 
     def send(self, url):
         '''Send the "url" to the service to be archived.'''
