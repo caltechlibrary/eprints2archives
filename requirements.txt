@@ -1,3 +1,4 @@
+aenum>=2.2.3
 appdirs>=1.4.3
 colorful>=0.5.3
 colorama>=0.3.0
@@ -12,6 +13,7 @@ psutil>=5.4
 PyInstaller>=3.5.0
 Pypubsub>=4.0.0
 requests>=2.19.1
+rich>=3.3.2
 setuptools>=41.0.1
 termcolor>=1.1.0
 urllib3>=1.23
