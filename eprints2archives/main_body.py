@@ -14,9 +14,14 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   concurrent.futures import ThreadPoolExecutor
 from   humanize import intcomma
+from   itertools import repeat
+from   rich.progress import Progress, BarColumn, TextColumn
 import sys
 from   threading import Thread
+import time
+from   timeit import default_timer as timer
 
 from .data_helpers import DATE_FORMAT, flatten, expand_range, parse_datetime
 from .debug import log
@@ -24,8 +29,9 @@ from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
 from .network import network_available, hostname
-from .services import KNOWN_SERVICES, services_list
-from .ui import UI, inform, warn, alert, alert_fatal
+from .services import service_names, service_interfaces
+from .ui import inform, warn, alert, alert_fatal
+from .styled import styled
 
 
 # Class definitions.
@@ -49,7 +55,7 @@ class MainBody(Thread):
         # Additional attributes we set later.
         self.user = None
         self.password = None
-        self.wanted = None
+        self.records = None
 
 
     def run(self):
@@ -98,7 +104,7 @@ class MainBody(Thread):
             raise CannotProceed(ExitCode.bad_arg)
 
         # The wanted list contains strings to avoid repeated conversions.
-        self.wanted = parsed_id_list(self.id_list)
+        self.records = parsed_id_list(self.id_list)
 
         if self.lastmod:
             try:
@@ -119,13 +125,17 @@ class MainBody(Thread):
             self.status[0] = self.status[0][1:]
 
         if self.dest == 'all':
-            self.dest = services_list()
+            self.dest = service_interfaces()
         else:
-            self.dest = self.dest.split(',')
-            for destination in self.dest:
-                if destination not in KNOWN_SERVICES.keys():
+            destination_list = []
+            for destination in self.dest.split(','):
+                service = service_by_name(destination)
+                if service:
+                    destination_list.append(service)
+                else:
                     alert_fatal('Unknown destination service "{}"', destination)
                     raise CannotProceed(ExitCode.bad_arg)
+            self.dest = destination_list
 
         text = 'EPrints server at ' + hostname(self.api_url)
         self.user, self.password, cancel = self.auth_handler.name_and_password(text)
@@ -136,26 +146,93 @@ class MainBody(Thread):
     def _do_main_work(self):
         '''Performs the core work of this program.'''
 
-        inform('Doing initial checks')
+        inform('Doing initial checks ...')
         self._do_preflight_checks()
 
-        inform('Asking server for list of available articles')
-        raw_list = eprints_raw_index(self.api_url, self.user, self.password)
-        if raw_list == None:
-            text = 'Did not get a response from server "{}"'.format(self.api_url)
+        server = hostname(self.api_url)
+        inform('Asking {} for index of records ...', styled(server, ['orange']))
+        index_xml = eprints_raw_index(self.api_url, self.user, self.password)
+        if index_xml == None:
+            text = 'Did not get a response from "{}"'.format(self.api_url)
             raise NoContent(text)
-        if not self.wanted:
-            inform('Fetching records list from {}', self.api_url)
-            self.wanted = eprints_records_list(raw_list)
+        if not self.records:
+            self.records = eprints_records_list(index_xml)
+        num_records = len(self.records)
 
-        inform('Beginning to process {} EPrints {}', intcomma(len(self.wanted)),
-               'entries' if len(self.wanted) > 1 else 'entry')
+        # Now we need to get the XML of individual EPrints records, to extract
+        # the <official_url> value, and we want to do that only once rather
+        # than separately inside each thread where they get sent to archiving
+        # services.  This step could be broken up and done in multiple threads
+        # here, but since the EPrints server is probably a single machine, it
+        # hitting it in parallely would just increase the load on that single
+        # machine.  So, this part is single-threaded and a potential bottleneck.
+        # Time will tell if we need to do better here.
+        eprints_urls = []
+        with Progress('[progress.description]{task.description}', BarColumn(),
+                      TextColumn('{task.fields[done]}/' + intcomma(num_records)),
+                      refresh_per_second = 5) as progress:
+            header = '[green]Getting individual records ...'
+            task = progress.add_task(header, done = 0, total = num_records)
+            for index, record in enumerate(self.records):
+                if __debug__: log('getting XML for record #{}', record)
+                xml = eprints_xml(record, self.api_url, self.user, self.password, True)
+                url = eprints_official_url(xml)
+                if url:
+                    eprints_urls.append(url)
+                else:
+                    warn('Could not get official_url for record #{}', record)
+                progress.update(task, advance = 1, done = index)
+
+        inform('Sending {} EPrints {} to {} archiving service{}',
+               intcomma(num_records), 'entries' if num_records > 1 else 'entry',
+               len(self.dest), 's' if len(self.dest) > 1 else '')
         if self.lastmod:
             inform('Will only keep records modified after {}', self.lastmod_str)
         if self.status:
             inform('Will only keep records {} status {}',
                    'without' if self.status_negation else 'with',
                    fmt_statuses(self.status, self.status_negation))
+
+        import pdb; pdb.set_trace()
+
+        # Send the list of wanted articles to each service in parallel.
+        with Progress('[progress.description]{task.description}', BarColumn(),
+                      TextColumn('{task.fields[done]} sent', justify = 'right'),
+                      refresh_per_second = 5) as progress:
+            if __debug__: log('starting {} threads', self.threads)
+            if self.threads == 1:
+                # For 1 thread, avoid thread pool to make debugging easier.
+                results = [self._send(d, progress) for d in self.dest]
+            else:
+                with ThreadPoolExecutor(max_workers = self.threads) as tpe:
+                    results = list(tpe.map(self._send, iter(self.dest), repeat(progress)))
+
+
+    def _send(self, service, progress):
+        header = '[green]Sending to [{}]{} ...'.format(service.color, service.name)
+        task = progress.add_task(header, done = 0, total = len(self.records))
+
+            # Ask the service if it's there, and archive it if not.
+
+            # Show some progress
+            # progress.update(task, advance = 1, done = index)
+
+            # Be nice to the server.
+            # sleep(self.delay/1000)
+
+
+        # for record in self.records:
+
+        #     last_time = timer()
+        #     try:
+        #         output = service.result()
+        #     except AuthFailure as ex:
+        #         raise AuthFailure('Unable to use {}: {}', service, ex)
+        #     except RateLimitExceeded as ex:
+        #         time_passed = timer() - last_time
+        #         if time_passed < 1/service.max_rate():
+        #             warn('Pausing {} due to rate limits', service_name)
+        #             time.sleep(1/service.max_rate() - time_passed)
 
 
 
