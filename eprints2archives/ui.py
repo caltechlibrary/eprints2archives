@@ -60,21 +60,21 @@ import os
 import os.path as path
 from   pubsub import pub
 from   queue import Queue
+import sys
+import textwrap
+from   time import sleep
+import webbrowser
 import wx
 import wx.adv
 import wx.lib
 from   wx.lib.dialogs import ScrolledMessageDialog
 import wx.richtext
-import sys
-import textwrap
-from   time import sleep
-import webbrowser
 
 from .app_frame import AppFrame
 from .debug import log
 from .exceptions import *
 from .logo import getLogoIcon
-from .styled import Styled
+from .styled import Styled, styled
 
 
 # Exported functions
@@ -236,14 +236,35 @@ class UI(UIBase):
 class CLI(UIBase, Styled):
     '''Command-line interface.'''
 
+
     def __init__(self, name, subtitle, use_gui, use_color, be_quiet):
         UIBase.__init__(self, name, subtitle, use_gui, use_color, be_quiet)
         Styled.__init__(self, apply_styling = not use_gui, use_color = use_color)
+        if __debug__: log('initializing CLI')
+        self._started = False
+
+        # If another thread was eager to send messages before we finished
+        # initialization, messages will get queued up on this internal queue.
+        self._queue = Queue()
+
+        # We want to print a welcome message, but have to queue it and wait
+        # until the CLI has been fully started before printing it.
+        num_dashes = 19 + len(self._name) + len(self._subtitle)
+        if self._use_color:
+            name = styled(self._name, ['chartreuse', 'bold'])
+        else:
+            name = self._name
+        self.inform('┏' + '━'*num_dashes + '┓')
+        self.inform('┃   Welcome to {}: {}   ┃', name, self._subtitle)
+        self.inform('┗' + '━'*num_dashes + '┛')
 
 
     def start(self):
         '''Start the user interface.'''
-        pass
+        if __debug__: log('starting CLI')
+        while not self._queue.empty():
+            print(self._queue.get(), flush = True)
+        self._started = True
 
 
     def stop(self):
@@ -251,23 +272,31 @@ class CLI(UIBase, Styled):
         pass
 
 
+    def _print_or_queue(self, text):
+        if self._started:
+            if __debug__: log(text)
+            print(text, flush = True)
+        else:
+            if __debug__: log('queueing message "{}"', text)
+            self._queue.put(text)
+
+
     def inform(self, text, *args):
         '''Print an informational message.'''
-        if __debug__: log(text, *args)
         if not self._be_quiet:
-            print(self.info_text(text, *args), flush = True)
+            self._print_or_queue(self.info_text(text, *args))
+        else:
+            if __debug__: log(text, *args)
 
 
     def warn(self, text, *args):
         '''Print a nonfatal, noncritical warning message.'''
-        if __debug__: log(text, *args)
-        print(self.warning_text(text, *args), flush = True)
+        self._print_or_queue(self.warning_text(text, *args))
 
 
     def alert(self, text, *args):
         '''Print a message reporting an error.'''
-        if __debug__: log(text, *args)
-        print(self.error_text(text, *args), flush = True)
+        self._print_or_queue(self.error_text(text, *args))
 
 
     def alert_fatal(self, text, *args, **kwargs):
@@ -279,9 +308,8 @@ class CLI(UIBase, Styled):
         version, this method does not stop the user interface (because in the
         CLI case, there is nothing equivalent to a GUI to shut down).
         '''
-        if __debug__: log(text, *args)
         text += '\n' + kwargs['details'] if 'details' in kwargs else ''
-        print(self.fatal_text(text, *args), flush = True)
+        self._print_or_queue(self.fatal_text(text, *args))
 
 
     def confirm(self, question):
