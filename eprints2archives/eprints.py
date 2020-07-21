@@ -25,6 +25,7 @@ from .data_helpers import parse_datetime
 from .debug import log
 from .exceptions import *
 from .network import net
+from .ui import warn, alert
 
 
 # Constants.
@@ -95,13 +96,13 @@ def eprints_records_list(raw_list):
     return numbers
 
 
-def eprints_xml(number, base_url, user, password, missing_ok, say):
+def eprints_xml(number, base_url, user, password, missing_ok):
     url = eprints_api(base_url, '/eprint/{}.xml'.format(number), user, password)
     (response, error) = net('get', url)
     if error:
         if isinstance(error, NoContent):
             if missing_ok:
-                say.warn('Server has no contents for record number {}', number)
+                warn('Server has no contents for record number {}', number)
                 return None
             else:
                 raise error
@@ -110,7 +111,7 @@ def eprints_xml(number, base_url, user, password, missing_ok, say):
             # specific records.  When ignoring missing entries, I guess it
             # makes sense to just flag them and move on.
             if missing_ok:
-                say.error(str(error) + ' for record number {}'.format(number))
+                alert(str(error) + ' for record number {}'.format(number))
                 return None
             else:
                 raise error
