@@ -32,7 +32,7 @@ from   .exit_codes import ExitCode
 from   .files import readable
 from   .main_body import MainBody
 from   .run_manager import RunManager
-from   .services import services_list
+from   .services import service_names
 from   .ui import UI, inform, warn, alert, alert_fatal
 
 
@@ -42,8 +42,9 @@ from   .ui import UI, inform, warn, alert, alert_fatal
 @plac.annotations(
     api_url    = ('the URL for the REST API of the EPrints server',         'option', 'a'),
     dest       = ('send to destination service "D" (default: "all")',       'option', 'd'),
+    force      = ('ask services to archive records even if already there',  'flag',   'f'),
     id_list    = ('list of EPrint record identifiers (can be a file)',      'option', 'i'),
-    keep_going = ('do not stop if missing records or errors encountered',   'flag',   'k'),
+    keep_going = ('do not stop if missing EPrints records encountered',     'flag',   'k'),
     lastmod    = ('only get EPrints records modified after given date',     'option', 'l'),
     quiet      = ('do not print informational messages while working',      'flag',   'q'),
     user       = ('EPrints server user login name "U"',                     'option', 'u'),
@@ -59,10 +60,11 @@ from   .ui import UI, inform, warn, alert, alert_fatal
     debug      = ('write detailed trace to "OUT" ("-" means console)',      'option', '@'),
 )
 
-def main(api_url = 'A', dest = 'D', id_list = 'I', keep_going = False,
-         lastmod = 'L', quiet = False, user = 'U', password = 'P', status = 'S',
-         threads = 'T', services = False, delay = 100, no_gui = False,
-         no_color = False, no_keyring = False, version = False, debug = 'OUT'):
+def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
+         keep_going = False, lastmod = 'L', quiet = False, user = 'U',
+         password = 'P', status = 'S', threads = 'T', services = False,
+         delay = 100, no_gui = False, no_color = False, no_keyring = False,
+         version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
 This program contacts an EPrints REST server whose network API is accessible
@@ -154,6 +156,13 @@ thread per service. By default the maximum number of threads used is equal
 to 1/2 of the number of cores on the computer it is running on. The option
 -t (or /t on Windows) can be used to change this number.
 
+By default, eprints2archives will only ask a service to archive a copy of an
+EPrints record if the service does not already have an archived copy.  This
+makes sense because EPrints records usually change infrequently, and there's
+little point in repeatedly asking web archives to store new copies.  However,
+if you have reason to want the web archives to re-archive EPrints records, you
+can use the option -f (or /f on Windows).
+
 Return values
 ~~~~~~~~~~~~~
 
@@ -210,7 +219,7 @@ Command-line options summary
         exit(0)
 
     if services:
-        print('Known services:', ', '.join(services_list()))
+        print('Known services:', ', '.join(service_names()))
         exit(0)
 
     # Do the real work --------------------------------------------------------
@@ -228,10 +237,11 @@ Command-line options summary
                         lastmod = None if lastmod == 'L' else lastmod,
                         status  = 'any' if status == 'S' else status,
                         dest    = 'all' if dest == 'D' else dest,
-                        delay   = int(delay),
                         threads = max(1, cpus()//2 if threads == 'T' else int(threads)),
                         auth_handler = auth,
-                        errors_ok = keep_going)
+                        errors_ok = keep_going,
+                        delay   = int(delay),
+                        force = force)
         manager = RunManager()
         manager.run(ui, body)
         exception = body.exception
