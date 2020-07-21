@@ -51,12 +51,13 @@ class RunManager():
         # must not be a daemon thread or else the program exits immediately.
         worker.daemon = ui.is_gui()
 
+        # Must start worker before ui, because in the GUI case, ui.start()
+        # will block until the UI thread exits.
         if __debug__: log('starting worker')
         worker.start()
-        if ui.is_gui():
-            if __debug__: log('starting main UI loop')
-            self._ui.start()
-        else:
+        if __debug__: log('starting main UI loop')
+        ui.start()
+        if not ui.is_gui():
             if __debug__: log('waiting on worker thread')
             worker.join()
         if __debug__: log('stopping worker')
