@@ -50,7 +50,8 @@ def expand_range(text):
     '''Return individual numbers for a range expressed as X-Y.'''
     # This makes the range 1-100 be 1, 2, ..., 100 instead of 1, 2, ..., 99
     if '-' in text:
-        range_list = sorted(text.split('-'))
+        range_list = text.split('-')
+        range_list.sort(key = int)
         return [*map(str, range(int(range_list[0]), int(range_list[1]) + 1))]
     else:
         return text
