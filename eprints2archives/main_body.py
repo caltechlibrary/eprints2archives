@@ -22,8 +22,9 @@ import sys
 from   threading import Thread
 import time
 from   timeit import default_timer as timer
+import validators.url
 
-from .data_helpers import DATE_FORMAT, flatten, expand_range, parse_datetime
+from .data_helpers import DATE_FORMAT, flatten, chunk, expand_range, parse_datetime
 from .debug import log
 from .eprints import *
 from .exceptions import *
@@ -32,6 +33,12 @@ from .network import network_available, hostname
 from .services import service_names, service_interfaces
 from .ui import inform, warn, alert, alert_fatal
 from .styled import styled
+
+
+# Constants.
+# .............................................................................
+
+_PARALLEL_THRESHOLD = 10
 
 
 # Class definitions.
@@ -99,12 +106,12 @@ class MainBody(Thread):
         if self.api_url is None:
             alert_fatal('Must provide an EPrints API URL.')
             raise CannotProceed(ExitCode.bad_arg)
-        elif not self.api_url.startswith('http') or not self.api_url.find('//') > 0:
+        elif not validators.url(self.api_url):
             alert_fatal('The given API URL does not appear to be a valid URL')
             raise CannotProceed(ExitCode.bad_arg)
 
-        # The wanted list contains strings to avoid repeated conversions.
-        self.records = parsed_id_list(self.id_list)
+        # The id's are stored as strings, not ints, to avoid repeated conversion
+        self.wanted = parsed_id_list(self.id_list)
 
         if self.lastmod:
             try:
@@ -149,39 +156,34 @@ class MainBody(Thread):
         inform('Doing initial checks ...')
         self._do_preflight_checks()
 
-        server = hostname(self.api_url)
-        inform('Asking {} for index of records ...', styled(server, ['orange']))
-        index_xml = eprints_raw_index(self.api_url, self.user, self.password)
-        if index_xml == None:
-            text = 'Did not get a response from "{}"'.format(self.api_url)
-            raise NoContent(text)
-        if not self.records:
-            self.records = eprints_records_list(index_xml)
-        num_records = len(self.records)
+        server = EPrintsServer(self.api_url, self.user, self.password)
 
-        # Now we need to get the XML of individual EPrints records, to extract
-        # the <official_url> value, and we want to do that only once rather
-        # than separately inside each thread where they get sent to archiving
-        # services.  This step could be broken up and done in multiple threads
-        # here, but since the EPrints server is probably a single machine, it
-        # hitting it in parallely would just increase the load on that single
-        # machine.  So, this part is single-threaded and a potential bottleneck.
-        # Time will tell if we need to do better here.
-        eprints_urls = []
+        if not self.wanted:
+            inform('Asking {} for index ...', styled(server, ['orange']))
+            self.wanted = server.records_list()
+            if len(self.wanted) == 0:
+                raise NoContent('Received empty list from {}'.format(server))
+        num_records = len(self.wanted)
+
+        # Now we get the <official_url> value of each record.  This is a pretty
+        # time-consuming operation, so we split it up.
         with Progress('[progress.description]{task.description}', BarColumn(),
-                      TextColumn('{task.fields[done]}/' + intcomma(num_records)),
+                      TextColumn('{task.completed}/' + intcomma(num_records)),
                       refresh_per_second = 5) as progress:
-            header = '[green]Getting individual records ...'
-            task = progress.add_task(header, done = 0, total = num_records)
-            for index, record in enumerate(self.records):
-                if __debug__: log('getting XML for record #{}', record)
-                xml = eprints_xml(record, self.api_url, self.user, self.password, True)
-                url = eprints_official_url(xml)
-                if url:
-                    eprints_urls.append(url)
-                else:
-                    warn('Could not get official_url for record #{}', record)
-                progress.update(task, advance = 1, done = index)
+            header = '[green]Getting URLs for EPrints records ...'
+            bar = progress.add_task(header, done = 0, total = num_records)
+            update_progress = lambda: progress.update(bar, advance = 1)
+            if self.threads == 1 or len(self.wanted) <= _PARALLEL_THRESHOLD:
+                urls = self._official_urls(self.wanted, server, update_progress)
+            else:
+                num_threads = min(len(self.wanted), self.threads)
+                groups = chunk(self.wanted, num_threads)
+                with ThreadPoolExecutor(max_workers = num_threads) as tpe:
+                    results = tpe.map(self._official_urls, iter(groups),
+                                      repeat(server), repeat(update_progress))
+                    urls = flatten(results)
+
+        import pdb; pdb.set_trace()
 
         inform('Sending {} EPrints {} to {} archiving service{}',
                intcomma(num_records), 'entries' if num_records > 1 else 'entry',
@@ -193,32 +195,32 @@ class MainBody(Thread):
                    'without' if self.status_negation else 'with',
                    fmt_statuses(self.status, self.status_negation))
 
-        import pdb; pdb.set_trace()
-
         # Send the list of wanted articles to each service in parallel.
         with Progress('[progress.description]{task.description}', BarColumn(),
-                      TextColumn('{task.fields[done]} sent', justify = 'right'),
+                      TextColumn('{task.completed} sent', justify = 'right'),
                       refresh_per_second = 5) as progress:
             if __debug__: log('starting {} threads', self.threads)
             if self.threads == 1:
                 # For 1 thread, avoid thread pool to make debugging easier.
                 results = [self._send(d, progress) for d in self.dest]
             else:
-                with ThreadPoolExecutor(max_workers = self.threads) as tpe:
+                num_threads = min(len(self.dest), self.threads)
+                with ThreadPoolExecutor(max_workers = num_threads) as tpe:
                     results = list(tpe.map(self._send, iter(self.dest), repeat(progress)))
 
 
-    def _send(self, service, progress):
-        header = '[green]Sending to [{}]{} ...'.format(service.color, service.name)
-        task = progress.add_task(header, done = 0, total = len(self.records))
-
-            # Ask the service if it's there, and archive it if not.
-
-            # Show some progress
-            # progress.update(task, advance = 1, done = index)
-
-            # Be nice to the server.
-            # sleep(self.delay/1000)
+    def _official_urls(self, wanted, server, update_progress):
+        num_records = len(wanted)
+        results = []
+        for index, record in enumerate(wanted):
+            if __debug__: log('getting official_url for record #{}', record)
+            url = server.field_value(record, 'official_url')
+            if url:
+                results.append(url)
+            elif not self.errors_ok:
+                warn('Could not get official_url for record #{}', record)
+            update_progress()
+        return results
 
 
         # for record in self.records:
@@ -265,7 +267,7 @@ def parsed_id_list(id_list):
     # Didn't find a file.  Try to parse as multiple numbers.
     if ',' not in id_list and '-' not in id_list:
         raise ValueError('Unable to understand list of record identifiers')
-    return flatten(expand_range(x) for x in id_list.split(','))
+    return list(flatten(expand_range(x) for x in id_list.split(',')))
 
 
 def fmt_statuses(status_list, negated):
