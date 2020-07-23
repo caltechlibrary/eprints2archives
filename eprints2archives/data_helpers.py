@@ -39,6 +39,16 @@ def flatten(iterable):
                 iterator = new_iterator
 
 
+def chunk(lst, n):
+    # Original algorithm from Jurgen Strydom posted 2019-02-21 Stack Overflow
+    # https://stackoverflow.com/a/54802737/743730
+    '''Yield n number of sequential chunks from lst.'''
+    d, r = divmod(len(lst), n)
+    for i in range(n):
+        si = (d+1)*(i if i < r else r) + d*(0 if i < r else i - r)
+        yield lst[si:si+(d+1 if i < r else d)]
+
+
 def ordinal(n):
     '''Print a number followed by "st" or "nd" or "rd", as appropriate.'''
     # Spectacular algorithm by user "Gareth" at this posting:
