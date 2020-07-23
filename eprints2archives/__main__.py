@@ -180,12 +180,11 @@ following table lists the possible return values:
 Other command-line arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It is worth noting that hitting an EPrints server for tens of thousands of
-records in rapid succession is likely to draw suspicion from server
-administrators. By default, this program inserts a small delay between
-record fetches (adjustable using the -y command-line option), which may be
-too short in some cases. Setting the value to 0 is also possible, but might
-get you blocked or banned from an institution's servers.
+Web archiving services may not accept high rates of submission, so by default,
+this program inserts a small delay (100 milliseconds) between submissions of
+URLs to archiving services.  The delay time is adjustable using the option -y
+(or /y on Windows).  Setting the value to 0 is possible, but beware that it
+might get you blocked or banned from a service.
 
 eprints2archives will print messages as it works. To limit the messages
 to warnings and errors only, use the option -q (or /q on Windows). Also,
