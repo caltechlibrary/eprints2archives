@@ -31,9 +31,13 @@ from   .exceptions import *
 from   .exit_codes import ExitCode
 from   .files import readable
 from   .main_body import MainBody
+from   .network import disable_ssl_cert_check
 from   .run_manager import RunManager
 from   .services import service_names
 from   .ui import UI, inform, warn, alert, alert_fatal
+
+# Disable certificate verification.  FIXME: probably shouldn't do this.
+disable_ssl_cert_check()
 
 
 # Main program.
