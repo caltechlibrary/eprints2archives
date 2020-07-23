@@ -304,7 +304,7 @@ def download(url, local_destination, recursing = 0):
             for chunk in req.iter_content(1024):
                 f.write(chunk)
         req.close()
-        size = stat(local_destination).st_size
+        if __debug__: size = stat(local_destination).st_size
         if __debug__: log('wrote {} bytes to file {}', size, local_destination)
     elif code in [401, 402, 403, 407, 451, 511]:
         raise AuthenticationFailure(addurl('Access is forbidden'))
