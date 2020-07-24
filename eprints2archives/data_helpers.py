@@ -17,36 +17,12 @@ with datetime.strftime().'''
 # Functions.
 # .............................................................................
 
-# Based on http://stackoverflow.com/a/10824484/743730
-def flatten(iterable):
-    '''Flatten a list produced by an iterable.  Non-recursive.'''
-    iterator, sentinel, stack = iter(iterable), object(), []
-    while True:
-        value = next(iterator, sentinel)
-        if value is sentinel:
-            if not stack:
-                break
-            iterator = stack.pop()
-        elif isinstance(value, str):
-            yield value
-        else:
-            try:
-                new_iterator = iter(value)
-            except TypeError:
-                yield value
-            else:
-                stack.append(iterator)
-                iterator = new_iterator
-
-
-def chunk(lst, n):
+def slice(lst, n):
     # Original algorithm from Jurgen Strydom posted 2019-02-21 Stack Overflow
     # https://stackoverflow.com/a/54802737/743730
-    '''Yield n number of sequential chunks from lst.'''
-    d, r = divmod(len(lst), n)
-    for i in range(n):
-        si = (d+1)*(i if i < r else r) + d*(0 if i < r else i - r)
-        yield lst[si:si+(d+1 if i < r else d)]
+    '''Yield n number of slices from lst.'''
+    for i in range(0, n):
+        yield lst[i::n]
 
 
 def ordinal(n):
