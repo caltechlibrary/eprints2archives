@@ -17,6 +17,7 @@ file "LICENSE" for more information.
 from   concurrent.futures import ThreadPoolExecutor
 from   humanize import intcomma
 from   itertools import repeat
+from   pydash import flatten
 from   rich.progress import Progress, BarColumn, TextColumn
 import sys
 from   threading import Thread
@@ -24,7 +25,7 @@ import time
 from   timeit import default_timer as timer
 import validators.url
 
-from .data_helpers import DATE_FORMAT, flatten, chunk, expand_range, parse_datetime
+from .data_helpers import DATE_FORMAT, slice, expand_range, parse_datetime
 from .debug import log
 from .eprints import *
 from .exceptions import *
@@ -38,7 +39,7 @@ from .styled import styled
 # Constants.
 # .............................................................................
 
-_PARALLEL_THRESHOLD = 10
+_PARALLEL_THRESHOLD = 2
 
 
 # Class definitions.
@@ -96,7 +97,7 @@ class MainBody(Thread):
         pass
 
 
-    def _do_preflight_checks(self):
+    def _do_preflight(self):
         '''Do error checks on the options given, and other prep work.'''
 
         if not network_available():
@@ -153,47 +154,70 @@ class MainBody(Thread):
     def _do_main_work(self):
         '''Performs the core work of this program.'''
 
-        inform('Doing initial checks ...')
-        self._do_preflight_checks()
+        self._do_preflight()
 
         server = EPrintsServer(self.api_url, self.user, self.password)
+        wanted = self.wanted
 
-        if not self.wanted:
+        if not wanted:
             inform('Asking {} for index ...', styled(server, ['orange']))
-            self.wanted = server.records_list()
-            if len(self.wanted) == 0:
+            wanted = server.index()
+            if len(wanted) == 0:
                 raise NoContent('Received empty list from {}'.format(server))
-        num_records = len(self.wanted)
 
-        # Now we get the <official_url> value of each record.  This is a pretty
-        # time-consuming operation, so we split it up.
-        with Progress('[progress.description]{task.description}', BarColumn(),
-                      TextColumn('{task.completed}/' + intcomma(num_records)),
-                      refresh_per_second = 5) as progress:
-            header = '[green]Getting URLs for EPrints records ...'
-            bar = progress.add_task(header, done = 0, total = num_records)
-            update_progress = lambda: progress.update(bar, advance = 1)
-            if self.threads == 1 or len(self.wanted) <= _PARALLEL_THRESHOLD:
-                urls = self._official_urls(self.wanted, server, update_progress)
-            else:
-                num_threads = min(len(self.wanted), self.threads)
-                groups = chunk(self.wanted, num_threads)
-                with ThreadPoolExecutor(max_workers = num_threads) as tpe:
-                    results = tpe.map(self._official_urls, iter(groups),
-                                      repeat(server), repeat(update_progress))
-                    urls = flatten(results)
+        # We switch strategies depending on what we need to get.  If we're
+        # not going to filter by lastmod or status, then we don't need to get
+        # more than the official_url field for each record.  We can ask the
+        # server for that directly, and that saves bandwidth and is a little
+        # faster.  Conversely, if we need to filter by any value, it takes
+        # less time to get the XML of every record rather than ask for 2 or
+        # more field values separately, because each EPrint lookup is slow
+        # and doing 2 or more lookups per record is slower than doing one
+        # lookup (even if it entails downloading more data per record).
 
-        import pdb; pdb.set_trace()
+        skipped = []
+        missing = []
+        if not self.lastmod and not self.status:
+            urls = self._urls_for_ids(wanted, server, self.threads, self.errors_ok)
+        else:
+            records = self._records_for_ids(wanted, server, self.threads, self.errors_ok)
+            if self.lastmod:
+                subset = []
+                for r in records:
+                    value = server.record_value(r, 'lastmod', self.errors_ok)
+                    timestamp = parse_datetime(value)
+                    if timestamp < self.lastmod:
+                        if __debug__: log('{} lastmod {} -- skipping', r, timestamp)
+                        skipped.append(r)
+                    else:
+                        subset.append(r)
+                inform('{} records were modified after {}', len(subset), self.lastmod_str)
+                records = subset
+            if self.status:
+                subset = []
+                for r in records:
+                    status = server.record_value(r, 'eprint_status', self.errors_ok)
+                    if ((not self.status_negation and status not in self.status)
+                        or (self.status_negation and status in self.status)):
+                        skipped.append(r)
+                    else:
+                        subset.append(r)
+                records = subset
+                inform('{} records are {} status {}', len(subset),
+                       'without' if self.status_negation else 'with',
+                       fmt_statuses(self.status, self.status_negation))
+            urls = [server.record_value(r, 'official_url', self.errors_ok) for r in records]
+
+        num_urls = len(urls)
+        if num_urls == 0:
+            warn('List of URLs is empty -- nothing to archive')
+            return
 
         inform('Sending {} EPrints {} to {} archiving service{}',
-               intcomma(num_records), 'entries' if num_records > 1 else 'entry',
+               intcomma(num_urls), 'entries' if num_urls > 1 else 'entry',
                len(self.dest), 's' if len(self.dest) > 1 else '')
-        if self.lastmod:
-            inform('Will only keep records modified after {}', self.lastmod_str)
-        if self.status:
-            inform('Will only keep records {} status {}',
-                   'without' if self.status_negation else 'with',
-                   fmt_statuses(self.status, self.status_negation))
+
+        import pdb; pdb.set_trace()
 
         # Send the list of wanted articles to each service in parallel.
         with Progress('[progress.description]{task.description}', BarColumn(),
@@ -209,21 +233,61 @@ class MainBody(Thread):
                     results = list(tpe.map(self._send, iter(self.dest), repeat(progress)))
 
 
-    def _official_urls(self, wanted, server, update_progress):
-        num_records = len(wanted)
-        results = []
-        for index, record in enumerate(wanted):
-            if __debug__: log('getting official_url for record #{}', record)
-            url = server.field_value(record, 'official_url')
-            if url:
-                results.append(url)
-            elif not self.errors_ok:
-                warn('Could not get official_url for record #{}', record)
-            update_progress()
-        return results
+    def _urls_for_ids(self, wanted, server, threads, missing_ok):
+        def urls_for_records(record_list, update_progress):
+            num_records = len(record_list)
+            results = []
+            for index, record in enumerate(record_list):
+                if __debug__: log('getting official_url for record #{}', record)
+                url = server.record_value(record, 'official_url', missing_ok)
+                if url:
+                    results.append(url)
+                elif not missing_ok:
+                    warn('Could not get official_url for record #{}', record)
+                update_progress()
+            return results
+
+        return self._gather(urls_for_records, wanted, threads, 'EPrints records')
 
 
-        # for record in self.records:
+    def _records_for_ids(self, wanted, server, threads, missing_ok):
+        def xml_for_records(record_list, update_progress):
+            num_records = len(record_list)
+            results = []
+            for index, record in enumerate(record_list):
+                if __debug__: log('getting official_url for record #{}', record)
+                xml = server.record_xml(record, missing_ok)
+                if xml is not None:
+                    results.append(xml)
+                elif not missing_ok:
+                    warn('Could not get XML for record #{}', record)
+                update_progress()
+            return results
+
+        return self._gather(xml_for_records, wanted, threads, 'EPrints records')
+
+
+    def _gather(self, func, wanted, threads, text):
+        num_wanted = len(wanted)
+        with Progress('[progress.description]{task.description}', BarColumn(),
+                      TextColumn('{task.completed}/' + intcomma(num_wanted)),
+                      refresh_per_second = 5) as progress:
+            # Wrap up the progress bar updater as a lambda that we can pass down.
+            header  = '[green]Getting {} ...'.format(text)
+            bar = progress.add_task(header, done = 0, total = num_wanted)
+            update_progress = lambda: progress.update(bar, advance = 1)
+
+            # If we want only a few records, don't bother going parallel.
+            if threads == 1 or num_wanted <= (threads * _PARALLEL_THRESHOLD):
+                return func(wanted, update_progress)
+
+            # In the parallel case, we'll get a list of lists, which we flatten.
+            num_threads = min(num_wanted, threads)
+            groups = slice(wanted, num_threads)
+            with ThreadPoolExecutor(max_workers = num_threads) as e:
+                results = e.map(func, iter(groups), repeat(update_progress))
+                return flatten(results)
+
 
         #     last_time = timer()
         #     try:
@@ -235,9 +299,6 @@ class MainBody(Thread):
         #         if time_passed < 1/service.max_rate():
         #             warn('Pausing {} due to rate limits', service_name)
         #             time.sleep(1/service.max_rate() - time_passed)
-
-
-
 
 
 # Helper functions.
