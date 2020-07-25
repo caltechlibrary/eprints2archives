@@ -190,7 +190,7 @@ def net(get_or_post, url, session = None, polling = False, recursing = 0, **kwar
     if code == 400:
         error = RequestError(addurl('Server rejected the request'))
     elif code in [401, 402, 403, 407, 451, 511]:
-        error = AuthFailure(addurl('Access is forbidden'))
+        error = AuthenticationFailure(addurl('Access is forbidden'))
     elif code in [404, 410] and not polling:
         error = NoContent(addurl("No content found"))
     elif code in [405, 406, 409, 411, 412, 414, 417, 428, 431, 505, 510]:
