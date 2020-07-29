@@ -31,7 +31,7 @@ from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
 from .network import network_available, hostname
-from .services import service_names, service_interfaces
+from .services import service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
 from .styled import styled
 
@@ -176,7 +176,6 @@ class MainBody(Thread):
         # lookup (even if it entails downloading more data per record).
 
         skipped = []
-        missing = []
         if not self.lastmod and not self.status:
             urls = self._urls_for_ids(wanted, server, self.threads, self.errors_ok)
         else:
@@ -213,24 +212,13 @@ class MainBody(Thread):
             warn('List of URLs is empty -- nothing to archive')
             return
 
+        if len(skipped) > 0:
+            inform('Skipping a total of {} records due to filtering', len(skipped))
         inform('Sending {} EPrints {} to {} archiving service{}',
                intcomma(num_urls), 'entries' if num_urls > 1 else 'entry',
                len(self.dest), 's' if len(self.dest) > 1 else '')
 
-        import pdb; pdb.set_trace()
-
-        # Send the list of wanted articles to each service in parallel.
-        with Progress('[progress.description]{task.description}', BarColumn(),
-                      TextColumn('{task.completed} sent', justify = 'right'),
-                      refresh_per_second = 5) as progress:
-            if __debug__: log('starting {} threads', self.threads)
-            if self.threads == 1:
-                # For 1 thread, avoid thread pool to make debugging easier.
-                results = [self._send(d, progress) for d in self.dest]
-            else:
-                num_threads = min(len(self.dest), self.threads)
-                with ThreadPoolExecutor(max_workers = num_threads) as tpe:
-                    results = list(tpe.map(self._send, iter(self.dest), repeat(progress)))
+        self._send(urls)
 
 
     def _urls_for_ids(self, wanted, server, threads, missing_ok):
@@ -287,6 +275,34 @@ class MainBody(Thread):
             with ThreadPoolExecutor(max_workers = num_threads) as e:
                 results = e.map(func, iter(groups), repeat(update_progress))
                 return flatten(results)
+
+
+    def _send(self, urls_to_send):
+        num_urls = len(urls_to_send)
+        with Progress('[progress.description]{task.description}', BarColumn(),
+                      TextColumn('{task.completed} sent', justify = 'right'),
+                      refresh_per_second = 5) as progress:
+
+            def send_to_service(dest, pbar):
+                header  = '[green]Sending EPrints URLs to [{}]{}[/{}]...'.format(
+                    dest.color, dest.name, dest.color)
+                bar = pbar.add_task(header, done = 0, total = num_urls)
+                update_progress = lambda: pbar.update(bar, advance = 1)
+                for index, url in enumerate(urls_to_send):
+                    if __debug__: log('sending {} to {}', url, dest)
+                    dest.save(url, self.force)
+                    update_progress()
+                    time.sleep(self.delay/1000)
+
+            if __debug__: log('starting {} threads', self.threads)
+            if self.threads == 1:
+                # For 1 thread, avoid thread pool to make debugging easier.
+                results = [send_to_service(d, progress) for d in self.dest]
+            else:
+                # Send the list of wanted articles to each service in parallel.
+                num_threads = min(len(self.dest), self.threads)
+                with ThreadPoolExecutor(max_workers = num_threads) as e:
+                    results = e.map(send_to_service, iter(self.dest), repeat(progress))
 
 
         #     last_time = timer()
