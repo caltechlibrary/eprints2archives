@@ -68,6 +68,8 @@ Authors and history
 
 [Mike Hucka](https://github.com/mhucka) began writing this program in mid-2020, in response to discussions with colleagues in Caltech's [Digital Library Development](https://www.library.caltech.edu/staff?&field_directory_department_name=Digital%20Library%20Development) group.
 
+The TimeMap parsing code in [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py) originally came from the [Off-Topic Memento Toolkit](https://github.com/oduwsdl/off-topic-memento-toolkit), by Shawn M. Jones, as it existed on 2020-07-29.  The OTMT code is made available according to the MIT license.  Acknowledgements and additional information are provided in the file header of [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py).
+
 
 Acknowledgments
 ---------------
