@@ -1,9 +1,24 @@
-"""
-otmt.timemap
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This module allows one to parse a link-format TimeMap.
-"""
+'''
+timemap.py: parse TimeMaps
 
+This file was originally timemap.py from the Off-Topic Memento Toolkit,
+https://github.com/oduwsdl/off-topic-memento-toolkit/blob/master/otmt/timemap.py
+retrieved from GitHub on 2020-07-29.  The git commit hash at the time I copied
+the file was e714c8ad3c41221b83b24fda1979844d03d83726.
+
+The license for OTMT at the time timemap.py was copied was the MIT license,
+https://github.com/oduwsdl/off-topic-memento-toolkit/blob/master/LICENSE.txt
+
+Authors (original)
+------------------
+
+Shawn M. Jones <jones.shawn.m@gmail.com> -- Old Dominion University
+
+Authors (subsequent modifications)
+----------------------------------
+
+Michael Hucka <mhucka@caltech.edu> -- Caltech Library
+'''
 
 import requests
 from copy import deepcopy
