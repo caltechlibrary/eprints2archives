@@ -19,13 +19,13 @@ from .archivetoday import SendToArchiveToday
 from .archivest import SendToArchiveST
 
 KNOWN_SERVICES = {
-    'internetarchive' : SendToInternetArchive,
-    'archive.st'      : SendToArchiveST,
-    'archive.today'   : SendToArchiveToday,
+    'internetarchive' : SendToInternetArchive(),
+    'archive.st'      : SendToArchiveST(),
+    'archive.today'   : SendToArchiveToday(),
 }
 
 # Save this list to avoid recreating it all the time.
-SERVICES_NAMES = sorted(KNOWN_SERVICES.keys())
+SERVICE_NAMES = sorted(KNOWN_SERVICES.keys())
 SERVICE_OBJECTS = KNOWN_SERVICES.values()
 
 def service_names():
