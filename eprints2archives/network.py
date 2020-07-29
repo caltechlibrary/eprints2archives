@@ -120,7 +120,8 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
                 raise error
 
 
-def net(get_or_post, url, session = None, polling = False, recursing = 0, **kwargs):
+def net(get_or_post, url, session = None, timeout = 20,
+        polling = False, recursing = 0, **kwargs):
     '''Gets or posts the 'url' with optional keyword arguments provided.
     Returns a tuple of (response, exception), where the first element is
     the response from the get or post http call, and the second element is
@@ -142,7 +143,8 @@ def net(get_or_post, url, session = None, polling = False, recursing = 0, **kwar
 
     req = None
     try:
-        req = timed_request(get_or_post, url, session, allow_redirects = True, **kwargs)
+        req = timed_request(get_or_post, url, session, timeout,
+                            allow_redirects = True, **kwargs)
     except requests.exceptions.ConnectionError as ex:
         if __debug__: log('got network exception: {}', str(ex))
         if recursing >= _MAX_RECURSIVE_CALLS:
@@ -207,6 +209,8 @@ def net(get_or_post, url, session = None, polling = False, recursing = 0, **kwar
         error = RateLimitExceeded('Server blocking further requests due to rate limits')
     elif code == 503:
         error = ServiceFailure('Server is unavailable -- try again later')
+    elif code == 504:
+        error = ServiceFailure('Server timeout: ' + req.text)
     elif code in [500, 501, 502, 506, 507, 508]:
         error = ServiceFailure(addurl('Server error (HTTP code {})'.format(code)))
     elif not (200 <= code < 400):
@@ -318,6 +322,9 @@ def download(url, local_destination, recursing = 0):
         raise RateLimitExceeded('Server blocking further requests due to rate limits')
     elif code == 503:
         raise ServiceFailure('Server is unavailable -- try again later')
+    elif code == 504:
+        if network_available():
+            raise ServiceFailure(addurl('Server timeout: ' + req.text))
     elif code in [500, 501, 502, 506, 507, 508]:
         raise ServiceFailure(addurl('Internal server error (HTTP code {})'.format(code)))
     else:
