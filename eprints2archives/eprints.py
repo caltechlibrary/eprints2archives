@@ -111,7 +111,7 @@ class EPrintsServer():
         if __debug__: log('getting XML for {} from server', record_id)
         try:
             response = self._get('/eprint/{}.xml'.format(record_id), missing_ok)
-        except (ServiceFailure, AuthenticationFailure) as ex:
+        except AuthenticationFailure as ex:
             # Our EPrints server sometimes returns with access forbidden for
             # specific records.  When ignoring missing entries, I guess it
             # makes sense to just flag them and move on.
@@ -151,7 +151,7 @@ class EPrintsServer():
                 return response.text if response else ''
         else:
             xml = id_or_record
-        return self._xml_field_value(id_or_record, field)
+        return self._xml_field_value(xml, field)
 
 
     # Internal methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
