@@ -26,8 +26,23 @@ class Service(object):
     name = ''
     color = ''
 
-    def send(self, url):
-        '''Send the "url" to the service to be archived.'''
+    def save(self, url):
+        '''Send the "url" to the service to save it.'''
+        pass
+
+
+    def newest(self, url):
+        '''Return the newest saved version of the content at "url".'''
+        pass
+
+
+    def oldest(self, url):
+        '''Return the oldest saved version of the content at "url".'''
+        pass
+
+
+    def nearest(self, url):
+        '''Return the closest saved version of the content at "url".'''
         pass
 
 
@@ -35,18 +50,18 @@ class Service(object):
     # .........................................................................
 
     def __str__(self):
-        return self.name()
+        return self.name
 
 
     def __repr__(self):
-        return self.name()
+        return self.name
 
 
     def __eq__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
         else:
-            return not self.name() < other.name() and not other.name() < self.name()
+            return not self.name < other.name and not other.name < self.name
 
 
     def __ne__(self, other):
@@ -54,25 +69,25 @@ class Service(object):
 
 
     def __lt__(self, other):
-        return self.name() < other.name()
+        return self.name < other.name
 
 
     def __gt__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
         else:
-            return other.name() < self.name()
+            return other.name < self.name
 
 
     def __le__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
         else:
-            return not other.name() < self.name()
+            return not other.name < self.name
 
 
     def __ge__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
         else:
-            return not self.name() < other.name()
+            return not self.name < other.name
