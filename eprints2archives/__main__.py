@@ -16,7 +16,7 @@ file "LICENSE" for more information.
 
 from   datetime import datetime as dt
 import os
-from   os import path
+from   os import path, cpu_count
 import plac
 from   rich.traceback import install as install_rich_traceback
 import sys
@@ -24,8 +24,7 @@ import sys
 import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
-from   .cpus import cpus
-from   .data_helpers import DATE_FORMAT, flatten, expand_range, parse_datetime
+from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime
 from   .debug import set_debug, log
 from   .exceptions import *
 from   .exit_codes import ExitCode
@@ -77,8 +76,8 @@ EPrints server URL has the form "https://server.institution.edu/rest". This
 program will automatically add "/eprint" to the URL path, so when writing the
 URL after option -a, omit that part of the URL.
 
-Specifying which records to get
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Specifying which records to send
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The EPrints records to be written will be limited to the list of EPrints
 numbers found in the file given by the option -i (or /i on Windows). If no
@@ -240,7 +239,7 @@ Command-line options summary
                         lastmod = None if lastmod == 'L' else lastmod,
                         status  = 'any' if status == 'S' else status,
                         dest    = 'all' if dest == 'D' else dest,
-                        threads = max(1, cpus()//2 if threads == 'T' else int(threads)),
+                        threads = max(1, cpu_count()//2 if threads == 'T' else int(threads)),
                         auth_handler = auth,
                         errors_ok = keep_going,
                         delay   = int(delay),
