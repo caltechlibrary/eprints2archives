@@ -20,31 +20,24 @@ Authors (subsequent modifications)
 Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 '''
 
+from   copy import deepcopy
+from   datetime import datetime
 import requests
-from copy import deepcopy
 
-from datetime import datetime
+from   ..exceptions import *
 
-class MalformedLinkFormatTimeMap(Exception):
-    """
-        This class exists to indicate errors while processing TimeMaps in
-        link format.
-    """
-    pass
 
-def convert_LinkTimeMap_to_dict(timemap_text, skipErrors=False):
-    """
-        A function to convert the link format TimeMap text into a Python 
-        dictionary that closely resembles the JSON specified at:
-        http://mementoweb.org/guide/timemap-json/
+def timemap_as_dict(timemap_text, skip_errors = False):
+    '''A function to convert the link format TimeMap text into a Python
+    dictionary that closely resembles the JSON specified at:
+    http://mementoweb.org/guide/timemap-json/
 
-        There is one difference: the value of the datetime attribute is
-        an actual Python datetime object.
+    There is one difference: the value of the datetime attribute is
+    an actual Python datetime object.
 
-        One can set skipErrors to True in order to skip errors in processing
-        the TimeMap, but use with caution as it can lead to unpredictable
-        behavior.
-    """
+    One can set skip_errors to True in order to skip errors in processing the
+    TimeMap, but use with caution as it can lead to unpredictable behavior.
+    '''
 
     def process_local_dict(local_dict, working_dict):
 
@@ -99,7 +92,7 @@ def convert_LinkTimeMap_to_dict(timemap_text, skipErrors=False):
 
                 if last:
                     working_dict["mementos"]["last"]["datetime"] = mdt
-                
+
         return working_dict
 
 
@@ -126,8 +119,8 @@ def convert_LinkTimeMap_to_dict(timemap_text, skipErrors=False):
             elif character.isspace():
                 pass
             else:
-                if not skipErrors:
-                    raise MalformedLinkFormatTimeMap(
+                if not skip_errors:
+                    raise CorruptedContent(
                         "issue at character {} while looking for next URI"
                         .format(charcount))
 
@@ -150,8 +143,8 @@ def convert_LinkTimeMap_to_dict(timemap_text, skipErrors=False):
                 pass
 
             else:
-                if not skipErrors:
-                    raise MalformedLinkFormatTimeMap(
+                if not skip_errors:
+                    raise CorruptedContent(
                         "issue at character {} while looking for relation"
                         .format(charcount))
 
@@ -176,8 +169,8 @@ def convert_LinkTimeMap_to_dict(timemap_text, skipErrors=False):
             elif character.isspace():
                 pass
             else:
-                if not skipErrors:
-                    raise MalformedLinkFormatTimeMap(
+                if not skip_errors:
+                    raise CorruptedContent(
                         "issue at character {} while looking for value"
                         .format(charcount))
 
@@ -196,9 +189,9 @@ def convert_LinkTimeMap_to_dict(timemap_text, skipErrors=False):
                 value += character
 
         else:
-            
-            if not skipErrors:
-                raise MalformedLinkFormatTimeMap(
+
+            if not skip_errors:
+                raise CorruptedContent(
                     "discovered unknown state while processing TimeMap")
 
     process_local_dict(local_dict, dict_timemap)
