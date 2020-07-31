@@ -64,6 +64,5 @@ class SendToInternetArchive(Service):
             if __debug__: log('save request returned normally')
             return True
         else:
-            import pdb; pdb.set_trace()
             if __debug__: log('save request resulted in an error: {}', str(error))
             raise error
