@@ -271,27 +271,38 @@ class MainBody(Thread):
 
             # In the parallel case, we'll get a list of lists, which we flatten.
             num_threads = min(num_wanted, threads)
-            groups = slice(wanted, num_threads)
+            if __debug__: log('using {} threads to gather records', num_threads)
             with ThreadPoolExecutor(max_workers = num_threads) as e:
-                results = e.map(func, iter(groups), repeat(update_progress))
+                # Don't use TPE map() b/c it doesn't bubble up exceptions.
+                futures = []
+                for group in slice(wanted, num_threads):
+                    futures.append(e.submit(func, group, update_progress))
+                results = [f.result() for f in futures]
                 return flatten(results)
 
 
     def _send(self, urls_to_send):
         num_urls = len(urls_to_send)
+        if self.force:
+            inform('Force option given ⟹  will push URLs even if archives have copies')
         with Progress('[progress.description]{task.description}', BarColumn(),
-                      TextColumn('{task.completed} sent', justify = 'right'),
+                      TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped',
+                                 justify = 'right'),
                       refresh_per_second = 5) as progress:
 
             def send_to_service(dest, pbar):
-                header  = '[green]Sending EPrints URLs to [{}]{}[/{}]...'.format(
+                header  = '[green]Sending URLs to [{}]{}[/{}]...'.format(
                     dest.color, dest.name, dest.color)
-                bar = pbar.add_task(header, done = 0, total = num_urls)
-                update_progress = lambda: pbar.update(bar, advance = 1)
+                added = 0
+                skipped = 0
+                bar = pbar.add_task(header, total = num_urls, added = added, skipped = skipped)
                 for index, url in enumerate(urls_to_send):
                     if __debug__: log('sending {} to {}', url, dest)
-                    dest.save(url, self.force)
-                    update_progress()
+                    (result, num_existing) = dest.save(url, self.force)
+                    if __debug__: log('result = {}, num_existing = {}', result, num_existing)
+                    added += int(result is True)
+                    skipped += int(result is False)
+                    pbar.update(bar, advance = 1, added = added, skipped = skipped)
                     time.sleep(self.delay/1000)
 
             if __debug__: log('starting {} threads', self.threads)
@@ -302,19 +313,11 @@ class MainBody(Thread):
                 # Send the list of wanted articles to each service in parallel.
                 num_threads = min(len(self.dest), self.threads)
                 with ThreadPoolExecutor(max_workers = num_threads) as e:
-                    results = e.map(send_to_service, iter(self.dest), repeat(progress))
-
-
-        #     last_time = timer()
-        #     try:
-        #         output = service.result()
-        #     except AuthFailure as ex:
-        #         raise AuthFailure('Unable to use {}: {}', service, ex)
-        #     except RateLimitExceeded as ex:
-        #         time_passed = timer() - last_time
-        #         if time_passed < 1/service.max_rate():
-        #             warn('Pausing {} due to rate limits', service_name)
-        #             time.sleep(1/service.max_rate() - time_passed)
+                    # Don't use TPE map() b/c it doesn't bubble up exceptions.
+                    futures = []
+                    for service in self.dest:
+                        futures.append(e.submit(send_to_service, service, progress))
+                    results = [f.result() for f in futures]
 
 
 # Helper functions.
