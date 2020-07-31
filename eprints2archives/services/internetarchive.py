@@ -15,19 +15,23 @@ class SendToInternetArchive(Service):
 
     # Public methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def save(self, url, force):
-        '''Return True if successfully saved, False if not saved.'''
+    def save(self, url, force = False):
+        '''Ask the service to save "url".'''
         existing = self._saved_copies(url)
-        if not existing or force:
-            return self._archive(url)
+        if existing:
+            if 'mementos' in existing and 'list' in existing['mementos']:
+                num_existing = len(existing['mementos']['list'])
+                if __debug__: log('there are {} mementos for {}', num_existing, url)
+            else:
+                raise InternalError('unexpected TimeMap format from IA')
+            if force:
+                added = self._archive(url)
+                return (added, num_existing)
+            else:
+                return (False, num_existing)
         else:
-            if __debug__:
-                if 'mementos' in existing and 'list' in existing['mementos']:
-                    count = len(existing['mementos']['list'])
-                    log('there are already {} mementos in IA', count)
-                else:
-                     raise InternalError('unexpected TimeMap format from IA')
-            return False
+            added = self._archive(url)
+            return (added, 0)
 
 
     # Internal methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,7 +47,7 @@ class SendToInternetArchive(Service):
         action_url = 'https://web.archive.org/web/timemap/link/' + self._uniform(url)
         (response, error) = net('get', action_url)
         if not error and response:
-            if __debug__: log('converting timemap to dict')
+            if __debug__: log('converting TimeMap to dict')
             return timemap_as_dict(response.text, skip_errors = True)
         elif isinstance(error, NoContent):
             return {}
@@ -60,5 +64,6 @@ class SendToInternetArchive(Service):
             if __debug__: log('save request returned normally')
             return True
         else:
+            import pdb; pdb.set_trace()
             if __debug__: log('save request resulted in an error: {}', str(error))
             raise error
