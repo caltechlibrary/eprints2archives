@@ -235,7 +235,7 @@ class MainBody(Thread):
                 update_progress()
             return results
 
-        return self._gather(urls_for_records, wanted, threads, 'EPrints records')
+        return self._gather(urls_for_records, wanted, threads, server, 'URLs')
 
 
     def _records_for_ids(self, wanted, server, threads, missing_ok):
@@ -252,16 +252,18 @@ class MainBody(Thread):
                 update_progress()
             return results
 
-        return self._gather(xml_for_records, wanted, threads, 'EPrints records')
+        return self._gather(xml_for_records, wanted, threads, server, 'records')
 
 
-    def _gather(self, func, wanted, threads, text):
+    def _gather(self, func, wanted, threads, server, text):
         num_wanted = len(wanted)
-        with Progress('[progress.description]{task.description}', BarColumn(),
+        with Progress('[progress.description]{task.description}',
+                      BarColumn(bar_width = None),
                       TextColumn('{task.completed}/' + intcomma(num_wanted)),
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
-            header  = '[green]Getting {} ...'.format(text)
+            styled_name = '[spring_green1]{}[/spring_green1]'.format(server)
+            header  = '[green]Getting EPrints {} from {} ...'.format(text, styled_name)
             bar = progress.add_task(header, done = 0, total = num_wanted)
             update_progress = lambda: progress.update(bar, advance = 1)
 
@@ -277,29 +279,27 @@ class MainBody(Thread):
                 futures = []
                 for group in slice(wanted, num_threads):
                     futures.append(e.submit(func, group, update_progress))
-                results = [f.result() for f in futures]
-                return flatten(results)
+                return flatten(f.result() for f in futures)
 
 
     def _send(self, urls_to_send):
         num_urls = len(urls_to_send)
         if self.force:
-            inform('Force option given ⟹  will push URLs even if archives have copies')
-        with Progress('[progress.description]{task.description}', BarColumn(),
-                      TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped',
-                                 justify = 'right'),
+            inform('Force option given ⟹  adding URLs even if archives have copies')
+        with Progress('[progress.description]{task.description}',
+                      BarColumn(bar_width = None),
+                      TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped'),
                       refresh_per_second = 5) as progress:
 
             def send_to_service(dest, pbar):
                 header  = '[green]Sending URLs to [{}]{}[/{}]...'.format(
                     dest.color, dest.name, dest.color)
-                added = 0
-                skipped = 0
-                bar = pbar.add_task(header, total = num_urls, added = added, skipped = skipped)
+                added = skipped = 0
+                bar = pbar.add_task(header, total = num_urls, added = 0, skipped = 0)
                 for index, url in enumerate(urls_to_send):
-                    if __debug__: log('sending {} to {}', url, dest)
+                    if __debug__: log('next for {}: {}', dest, url)
                     (result, num_existing) = dest.save(url, self.force)
-                    if __debug__: log('result = {}, num_existing = {}', result, num_existing)
+                    if __debug__: log('result = {}', result)
                     added += int(result is True)
                     skipped += int(result is False)
                     pbar.update(bar, advance = 1, added = added, skipped = skipped)
