@@ -108,15 +108,20 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
+            # Pause briefly b/c it's rarely a good idea to retry immediately.
+            sleep(1)
         if failures >= _MAX_FAILURES:
             # Pause with exponential back-off, reset failure count & try again.
             if retries < _MAX_RETRIES:
                 retries += 1
                 failures = 0
-                if __debug__: log('pausing because of consecutive failures')
-                sleep(10 * retries * retries)
+                pause = 10 * retries * retries
+                if __debug__: log('pausing {}s due to consecutive failures', pause)
+                sleep(pause)
             else:
                 # We've already paused & restarted once.
+                # Add a property to store the status code so the caller can get it.
+                error.status_code = response.status_code
                 raise error
 
 
