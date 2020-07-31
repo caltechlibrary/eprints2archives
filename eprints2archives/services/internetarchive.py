@@ -1,12 +1,33 @@
+from   humanize import intcomma
 import requests
+from   time import sleep
 
 from ..debug import log
 from ..exceptions import *
 from ..network import net
+from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict
 
+
+# Constants.
+# .............................................................................
+
+_MAX_RETRIES = 3
+'''Maximum number of times we back off and try again.'''
+
+_RETRY_SLEEP_TIME = 60 * 60
+'''Time in seconds we pause if we get repeated errors.  This pause is on top
+of the maximum time reached after exponential back-off by our underlying
+network code, and is used to pause before the whole scheme is retried again.
+This needs to be a long time because if we invoke our own retry loop, it means
+we've already been trying for a considerable amount of time and the root cause
+may be significant.'''
+
+
+# Classes.
+# .............................................................................
 
 class SendToInternetArchive(Service):
     label = 'internetarchive'
@@ -55,7 +76,7 @@ class SendToInternetArchive(Service):
             raise error
 
 
-    def _archive(self, url):
+    def _archive(self, url, retry = 0):
         if __debug__: log('asking {} to save {}', self.name, url)
         payload = {'url': url, 'capture_all': 'on'}
         action_url = 'https://web.archive.org/save/' + self._uniform(url)
@@ -65,4 +86,17 @@ class SendToInternetArchive(Service):
             return True
         else:
             if __debug__: log('save request resulted in an error: {}', str(error))
-            raise error
+            # Our underlying net(...) function will retry automatically in
+            # the face of problems, but will give up eventually.  Sometimes
+            # IA errors are temporary, so we pause for even longer & retry.
+            retry += 1
+            retries_left = _MAX_RETRIES - retry
+            if __debug__: log('we have {} retries left', retries_left)
+            if retries_left > 0:
+                warn('Encountered repeated errors from {} -- pausing for {}s',
+                     self.name, intcomma(_RETRY_SLEEP_TIME))
+                sleep(_RETRY_SLEEP_TIME)
+                return self._archive(url, retry)
+            else:
+                if __debug__: log('retry limit reached for {}.', self.name)
+                raise error
