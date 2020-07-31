@@ -108,9 +108,6 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
-                if response is not None and getattr(response, 'status_code'):
-                    # Store the status code so the caller can get it.
-                    error.status_code = response.status_code
             # Pause briefly b/c it's rarely a good idea to retry immediately.
             sleep(1)
         if failures >= _MAX_FAILURES:
