@@ -166,7 +166,8 @@ def net(get_or_post, url, session = None, timeout = 20,
             if __debug__: log('net() got ConnectionResetError; will recurse')
             sleep(1)                    # Sleep a short time and try again.
             if __debug__: log('doing recursive call #{}', recursing + 1)
-            return net(get_or_post, url, session, polling, recursing + 1, **kwargs)
+            return net(get_or_post, url, session, timeout, polling,
+                       recursing + 1, **kwargs)
         else:
             if __debug__: log('returning NetworkFailure')
             return (req, NetworkFailure(str(ex)))
@@ -205,7 +206,8 @@ def net(get_or_post, url, session = None, timeout = 20,
             if __debug__: log('rate limit hit -- sleeping {}', pause)
             sleep(pause)                  # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log('doing recursive call #{}', recursing + 1)
-            return net(get_or_post, url, session, polling, recursing + 1, **kwargs)
+            return net(get_or_post, url, session, timeout, polling,
+                       recursing + 1, **kwargs)
         error = RateLimitExceeded('Server blocking further requests due to rate limits')
     elif code == 503:
         error = ServiceFailure('Server is unavailable -- try again later')
