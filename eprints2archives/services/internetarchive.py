@@ -29,7 +29,7 @@ may be significant.'''
 # Classes.
 # .............................................................................
 
-class SendToInternetArchive(Service):
+class InternetArchive(Service):
     label = 'internetarchive'
     name  = 'Internet Archive'
     color = 'white'

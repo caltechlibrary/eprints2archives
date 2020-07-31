@@ -1,6 +1,6 @@
 from .base import Service
 
-class SendToArchiveST(Service):
+class ArchiveST(Service):
     label = 'archive.st'
     name = 'Archive.st'
     color = 'aquamarine1'

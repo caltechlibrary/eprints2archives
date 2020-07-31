@@ -14,14 +14,14 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-from .internetarchive import SendToInternetArchive
-from .archivetoday import SendToArchiveToday
-from .archivest import SendToArchiveST
+from .internetarchive import InternetArchive
+from .archivetoday import ArchiveToday
+from .archivest import ArchiveST
 
 KNOWN_SERVICES = {
-    'internetarchive' : SendToInternetArchive(),
-    'archive.st'      : SendToArchiveST(),
-    'archive.today'   : SendToArchiveToday(),
+    'internetarchive' : InternetArchive(),
+    'archive.st'      : ArchiveST(),
+    'archive.today'   : ArchiveToday(),
 }
 
 # Save this list to avoid recreating it all the time.
