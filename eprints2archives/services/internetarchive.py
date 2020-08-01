@@ -51,6 +51,7 @@ class InternetArchive(Service):
             else:
                 return (False, num_existing)
         else:
+            if __debug__: log(f'IA returned no mementos for {url}')
             added = self._archive(url)
             return (added, 0)
 
