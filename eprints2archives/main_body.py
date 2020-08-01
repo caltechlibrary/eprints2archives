@@ -217,7 +217,9 @@ class MainBody(Thread):
         inform('Sending {} EPrints {} to {} archiving service{}',
                intcomma(num_urls), 'entries' if num_urls > 1 else 'entry',
                len(self.dest), 's' if len(self.dest) > 1 else '')
-
+        if num_urls > 1000:
+            inform('This is going to take {} time -- do not be alarmed',
+                   'an extremely long' if num_urls > 10000 else 'a long')
         self._send(urls)
 
 
@@ -263,7 +265,7 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
             styled_name = '[spring_green1]{}[/spring_green1]'.format(server)
-            header  = '[green]Getting EPrints {} from {} ...'.format(text, styled_name)
+            header  = '[green]Getting {} from {} ...'.format(text, styled_name)
             bar = progress.add_task(header, done = 0, total = num_wanted)
             update_progress = lambda: progress.update(bar, advance = 1)
 
@@ -292,7 +294,7 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
 
             def send_to_service(dest, pbar):
-                header  = '[green]Sending URLs to [{}]{}[/{}]...'.format(
+                header  = '[green]Sending URLs to [{}]{}[/{}] ...'.format(
                     dest.color, dest.name, dest.color)
                 added = skipped = 0
                 bar = pbar.add_task(header, total = num_urls, added = 0, skipped = 0)
