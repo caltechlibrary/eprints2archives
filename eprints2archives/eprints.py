@@ -174,7 +174,8 @@ class EPrintsServer():
         (response, error) = net('get', endpoint)
         if not error and response:
             return response
-        elif isinstance(error, NoContent) and missing_ok:
+        elif isinstance(error, (NoContent, AuthenticationFailure)) and missing_ok:
+            if __debug__: log('got {} error for {}', type(error), url)
             return None
         else:
             raise error
