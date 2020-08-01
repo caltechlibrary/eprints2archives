@@ -305,7 +305,6 @@ class MainBody(Thread):
                     added += int(result is True)
                     skipped += int(result is False)
                     pbar.update(bar, advance = 1, added = added, skipped = skipped)
-                    time.sleep(self.delay/1000)
 
             if __debug__: log('starting {} threads', self.threads)
             if self.threads == 1:

@@ -55,7 +55,6 @@ disable_ssl_cert_check()
     status     = ('only get records whose status is in the list "S"',       'option', 's'),
     threads    = ('number of threads to use (default: #cores/2)',           'option', 't'),
     services   = ('print list of known services and exit',                  'flag',   'v'),
-    delay      = ('wait time bet. requests to services (default: 100 ms)',  'option', 'y'),
     no_color   = ('do not color-code terminal output',                      'flag',   'C'),
     no_gui     = ('do not start the GUI interface (default: do)',           'flag',   'G'),
     no_keyring = ('do not store credentials in a keyring service',          'flag',   'K'),
@@ -66,7 +65,7 @@ disable_ssl_cert_check()
 def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
          keep_going = False, lastmod = 'L', quiet = False, user = 'U',
          password = 'P', status = 'S', threads = 'T', services = False,
-         delay = 100, no_gui = False, no_color = False, no_keyring = False,
+         no_gui = False, no_color = False, no_keyring = False,
          version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
@@ -183,12 +182,6 @@ following table lists the possible return values:
 Other command-line arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Web archiving services may not accept high rates of submission, so by default,
-this program inserts a small delay (100 milliseconds) between submissions of
-URLs to archiving services.  The delay time is adjustable using the option -y
-(or /y on Windows).  Setting the value to 0 is possible, but beware that it
-might get you blocked or banned from a service.
-
 eprints2archives will print messages as it works. To limit the messages
 to warnings and errors only, use the option -q (or /q on Windows). Also,
 output is color-coded by default unless the -C option (or /C on Windows) is
@@ -242,7 +235,6 @@ Command-line options summary
                         threads = max(1, cpu_count()//2 if threads == 'T' else int(threads)),
                         auth_handler = auth,
                         errors_ok = keep_going,
-                        delay   = int(delay),
                         force = force)
         manager = RunManager()
         manager.run(ui, body)
