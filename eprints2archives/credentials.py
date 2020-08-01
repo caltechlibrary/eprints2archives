@@ -43,17 +43,15 @@ def credentials(service, display_name, user=None, pswd=None, host=-1, port=-1,
         (s_user, s_pswd, s_host, s_port) = keyring_credentials(service)
 
     if host != -1 and not host:
-        host = s_host or input("{} host (default: {}): ".format(display_name,
-                                                                default_host))
+        host = s_host or input(f'{display_name} host (default: {default_host}): ')
         host = host or default_host
     if port != -1 and not port:
-        port = s_port or input("{} port (default: {}): ".format(display_name,
-                                                                default_port))
+        port = s_port or input(f'{display_name} port (default: {default_port}): ')
         port = port or default_port
     if not user:
-        user = s_user or input("{} user name: ".format(display_name))
+        user = s_user or input(f'{display_name} user name: ')
     if not pswd:
-        pswd = s_pswd or password('{} password: '.format(display_name))
+        pswd = s_pswd or password(f'{display_name} password: ')
 
     return (user, pswd, host, port)
 
@@ -116,7 +114,7 @@ shell prompt, because control-c is normally used to interrupt programs.
 '''
 
 def _encoded(user, pswd, host, port):
-    return '{}{}{}{}{}{}{}'.format(user, _sep, pswd, _sep, host, _sep, port)
+    return f'{user}{_sep}{pswd}{_sep}{host}{_sep}{port}'
 
 
 def _decoded(value_string):

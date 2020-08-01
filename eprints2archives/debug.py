@@ -84,5 +84,5 @@ def log(s, *other_args):
             func = inspect.currentframe().f_back.f_code.co_name
             file_path = inspect.currentframe().f_back.f_code.co_filename
             filename = path.basename(file_path)
-            logging.getLogger(__package__).debug('{} {}(): '.format(filename, func)
+            logging.getLogger(__package__).debug(f'{filename} {func}(): '
                                                  + s.format(*other_args))

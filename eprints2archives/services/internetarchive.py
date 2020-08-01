@@ -42,7 +42,7 @@ class InternetArchive(Service):
         if existing:
             if 'mementos' in existing and 'list' in existing['mementos']:
                 num_existing = len(existing['mementos']['list'])
-                if __debug__: log('there are {} mementos for {}', num_existing, url)
+                if __debug__: log(f'there are {num_existing} mementos for {url}')
             else:
                 raise InternalError('unexpected TimeMap format from IA')
             if force:
@@ -63,7 +63,7 @@ class InternetArchive(Service):
 
     def _saved_copies(self, url):
         '''Returns a timemap, in the form of a dict.'''
-        if __debug__: log('asking {} for info about {}', self.name, url)
+        if __debug__: log(f'asking {self.name} for info about {url}')
 
         action_url = 'https://web.archive.org/web/timemap/link/' + self._uniform(url)
         (response, error) = net('get', action_url)
@@ -77,7 +77,7 @@ class InternetArchive(Service):
 
 
     def _archive(self, url, retry = 0):
-        if __debug__: log('asking {} to save {}', self.name, url)
+        if __debug__: log(f'asking {self.name} to save {url}')
         payload = {'url': url, 'capture_all': 'on'}
         action_url = 'https://web.archive.org/save/' + self._uniform(url)
         (response, error) = net('post', action_url, data = payload)
@@ -85,18 +85,18 @@ class InternetArchive(Service):
             if __debug__: log('save request returned normally')
             return True
         else:
-            if __debug__: log('save request resulted in an error: {}', str(error))
+            if __debug__: log(f'save request resulted in an error: {str(error)}')
             # Our underlying net(...) function will retry automatically in
             # the face of problems, but will give up eventually.  Sometimes
             # IA errors are temporary, so we pause for even longer & retry.
             retry += 1
             retries_left = _MAX_RETRIES - retry
-            if __debug__: log('we have {} retries left', retries_left)
+            if __debug__: log(f'we have {retries_left} retries left')
             if retries_left > 0:
                 warn('Encountered repeated errors from {} -- pausing for {}s',
                      self.name, intcomma(_RETRY_SLEEP_TIME))
                 sleep(_RETRY_SLEEP_TIME)
                 return self._archive(url, retry)
             else:
-                if __debug__: log('retry limit reached for {}.', self.name)
+                if __debug__: log(f'retry limit reached for {self.name}.')
                 raise error

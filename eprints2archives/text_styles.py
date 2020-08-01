@@ -28,7 +28,7 @@ from .debug import log
 try:
     rgb_file = path.join(colorful.__path__[0], 'data/rgb.txt')
     if path.exists(rgb_file):
-        if __debug__: log('loading colorful colors from {}', rgb_file)
+        if __debug__: log(f'loading colorful colors from {rgb_file}')
         colorful.setup(colorpalette = rgb_file)
     else:
         if __debug__: log('cannot find colorful rgb.txt file')

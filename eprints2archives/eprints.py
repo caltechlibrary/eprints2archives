@@ -105,24 +105,24 @@ class EPrintsServer():
         '''Return an XML object identified by the given record identifier.'''
         record_id = str(record_id)
         if record_id in self._records:
-            if __debug__: log('returning cached XML for record {}', record_id)
+            if __debug__: log(f'returning cached XML for record {record_id}')
             return self._records[record_id]
 
-        if __debug__: log('getting XML for {} from server', record_id)
+        if __debug__: log('getting XML for {record_id} from server')
         try:
-            response = self._get('/eprint/{}.xml'.format(record_id), missing_ok)
+            response = self._get(f'/eprint/{record_id}.xml', missing_ok)
         except AuthenticationFailure as ex:
             # Our EPrints server sometimes returns with access forbidden for
             # specific records.  When ignoring missing entries, I guess it
             # makes sense to just flag them and move on.
             if missing_ok:
-                warn(str(error) + ' for record {}'.format(record_id))
+                warn(str(error) + f' for record {record_id}')
                 self._records[record_id] = None
                 return None
             else:
                 raise error
         if response is None and missing_ok:
-            warn('Server has no contents for record {}', record_id)
+            warn(f'Server has no contents for record {record_id}')
             self._records[record_id] = None
             return None
         xml = etree.fromstring(response.content)
@@ -141,12 +141,12 @@ class EPrintsServer():
             id_or_record = str(id_or_record)
             if id_or_record in self._records:
                 # We have a copy of the XML for this one.  Use it.
-                if __debug__: log('using cached copy of record {}', id_or_record)
+                if __debug__: log(f'using cached copy of record {id_or_record}')
                 xml = self._records[id_or_record]
             else:
                 # Contact the server.
-                if __debug__: log('{} not cached -- asking server', id_or_record)
-                field_url = '/eprint/' + id_or_record + '/' + field + '.txt'
+                if __debug__: log(f'{id_or_record} not cached -- asking server')
+                field_url = f'/eprint/{id_or_record}/{field}.txt'
                 response = self._get(field_url, missing_ok)
                 return response.text if response else ''
         else:
@@ -163,7 +163,7 @@ class EPrintsServer():
         url = self._api_url
         start = url.find('//')
         if start < 0:
-            raise BadURL('Unable to parse "{}" as a normal URL'.format(url))
+            raise BadURL(f'Unable to parse "{url}" as a normal URL')
         if self._user and self._password:
             endpoint = url[:start + 2] + self._user + ':' + self._password + '@' + url[start + 2:] + op
         elif self._user and not self._password:
@@ -175,14 +175,14 @@ class EPrintsServer():
         if not error and response:
             return response
         elif isinstance(error, (NoContent, AuthenticationFailure)) and missing_ok:
-            if __debug__: log('got {} error for {}', type(error), url)
+            if __debug__: log(f'got {type(error)} error for {url}')
             return None
         else:
             raise error
 
 
     def _eprints_raw_index(self):
-        if __debug__: log('asking {} for index of records', self._hostname)
+        if __debug__: log(f'asking {self._hostname} for index of records')
         response = self._get('/eprint')
         if response and response.text and response.text.startswith('<?xml'):
             return response.content
@@ -196,4 +196,4 @@ class EPrintsServer():
             node = xml.find('.//{' + _EPRINTS_XMLNS + '}' + field)
             return node.text if node != None else ''
         else:
-            raise InternalError('Not an XML object: {}'.format(xml))
+            raise InternalError(f'Not an XML object: {xml}')

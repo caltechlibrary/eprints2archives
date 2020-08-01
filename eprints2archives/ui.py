@@ -277,7 +277,7 @@ class CLI(UIBase, Styled):
             if __debug__: log(text)
             print(text, flush = True)
         else:
-            if __debug__: log('queueing message "{}"', text)
+            if __debug__: log(f'queueing message "{text}"')
             self._queue.put(text)
 
 
@@ -314,7 +314,7 @@ class CLI(UIBase, Styled):
 
     def confirm(self, question):
         '''Asks a yes/no question of the user, on the command line.'''
-        return input("{} (y/n) ".format(question)).startswith(('y', 'Y'))
+        return input(f'{question} (y/n) ').startswith(('y', 'Y'))
 
 
     def file_selection(self, operation_type, question, pattern):
@@ -379,7 +379,7 @@ class GUI(UIBase):
         if __debug__: log('generating yes/no dialog')
         wx.CallAfter(self._ask_yes_no, question)
         self._wait()
-        if __debug__: log('got response: {}', self._response)
+        if __debug__: log(f'got response: {self._response}')
         return self._response
 
 
@@ -406,7 +406,7 @@ class GUI(UIBase):
 
     def file_selection(self, type, message, pattern):
         return_queue = Queue()
-        if __debug__: log('sending message to {}_file', type)
+        if __debug__: log(f'sending message to {type}_file')
         if type == 'open':
             wx.CallAfter(pub.sendMessage, 'open_file', return_queue = return_queue,
                          message = message, pattern = pattern)
@@ -503,7 +503,7 @@ class GUI(UIBase):
             extra_text = ''
         if details:
             style |= wx.HELP
-        caption = self._name + " has encountered a {}problem".format(extra_text)
+        caption = self._name + ' has encountered a {extra_text}problem'
         dlg = wx.MessageDialog(frame, message = short, style = style, caption = caption)
         clicked = dlg.ShowModal()
         if clicked == wx.ID_HELP:

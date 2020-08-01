@@ -52,6 +52,7 @@ disable_ssl_cert_check()
     quiet      = ('do not print informational messages while working',      'flag',   'q'),
     user       = ('EPrints server user login name "U"',                     'option', 'u'),
     password   = ('EPrints server user password "P"',                       'option', 'p'),
+    report     = ('save a report of what was saved to file "R"',            'option', 'r'),
     status     = ('only get records whose status is in the list "S"',       'option', 's'),
     threads    = ('number of threads to use (default: #cores/2)',           'option', 't'),
     services   = ('print list of known services and exit',                  'flag',   'v'),
@@ -64,8 +65,8 @@ disable_ssl_cert_check()
 
 def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
          keep_going = False, lastmod = 'L', quiet = False, user = 'U',
-         password = 'P', status = 'S', threads = 'T', services = False,
-         no_gui = False, no_color = False, no_keyring = False,
+         password = 'P', report = 'R', status = 'S', threads = 'T',
+         services = False, no_gui = False, no_color = False, no_keyring = False,
          version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
@@ -165,6 +166,9 @@ little point in repeatedly asking web archives to store new copies.  However,
 if you have reason to want the web archives to re-archive EPrints records, you
 can use the option -f (or /f on Windows).
 
+To save a report of the articles sent to archiving services, you can use the
+option -r (/r on Windows) followed by a file name.
+
 Return values
 ~~~~~~~~~~~~~
 
@@ -219,7 +223,7 @@ Command-line options summary
 
     # Do the real work --------------------------------------------------------
 
-    if __debug__: log('='*8 + ' started {}' + '='*8, dt.now().strftime(DATE_FORMAT))
+    if __debug__: log('='*8 + f' started {dt.now().strftime(DATE_FORMAT)}' + '='*8)
     ui = manager = exception = None
     try:
         ui = UI('eprints2archives', 'send EPrints records to web archives',
@@ -235,7 +239,8 @@ Command-line options summary
                         threads = max(1, cpu_count()//2 if threads == 'T' else int(threads)),
                         auth_handler = auth,
                         errors_ok = keep_going,
-                        force = force)
+                        force = force,
+                        report_file = None if report == 'R' else report)
         manager = RunManager()
         manager.run(ui, body)
         exception = body.exception
@@ -250,14 +255,14 @@ Command-line options summary
         if type(exception[1]) == CannotProceed:
             exit_code = exception[1].args[0]
         elif type(exception[1]) in [KeyboardInterrupt, UserCancelled]:
-            if __debug__: log('received {}', exception[1].__class__.__name__)
+            if __debug__: log('received {exception[1].__class__.__name__}')
             exit_code = ExitCode.user_interrupt
         else:
             exit_code = ExitCode.exception
             from traceback import format_exception
             ex_type = str(exception[1])
             details = ''.join(format_exception(*exception))
-            if __debug__: log('Exception: {}\n{}', ex_type, details)
+            if __debug__: log(f'Exception: {ex_type}\n{details}')
             if debugging:
                 import pdb; pdb.set_trace()
             if ui:

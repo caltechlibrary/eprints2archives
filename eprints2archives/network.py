@@ -91,7 +91,7 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
                 # We don't care here.  See also this for a discussion:
                 # https://github.com/kennethreitz/requests/issues/2214
                 warnings.simplefilter("ignore", InsecureRequestWarning)
-                if __debug__: log('doing http {} on {}', get_or_post, url)
+                if __debug__: log(f'doing http {get_or_post} on {url}')
                 if session:
                     method = getattr(session, get_or_post)
                 else:
@@ -102,7 +102,7 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
         except Exception as ex:
             # Problem might be transient.  Don't quit right away.
             failures += 1
-            if __debug__: log('exception (failure #{}): {}', failures, str(ex))
+            if __debug__: log(f'exception (failure #{failures}): {str(ex)}')
             # Record the first error we get, not the subsequent ones, because
             # in the case of network outages, the subsequent ones will be
             # about being unable to reconnect and not the original problem.
@@ -116,7 +116,7 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
                 retries += 1
                 failures = 0
                 pause = 10 * retries * retries
-                if __debug__: log('pausing {}s due to consecutive failures', pause)
+                if __debug__: log(f'pausing {pause}s due to consecutive failures')
                 sleep(pause)
             else:
                 raise error
@@ -141,14 +141,14 @@ def net(get_or_post, url, session = None, timeout = 20,
     network call.
     '''
     def addurl(text):
-        return (text + ' for {}').format(url)
+        return text + f' for {url}'
 
     req = None
     try:
         req = timed_request(get_or_post, url, session, timeout,
                             allow_redirects = True, **kwargs)
     except requests.exceptions.ConnectionError as ex:
-        if __debug__: log('got network exception: {}', str(ex))
+        if __debug__: log(f'got network exception: {str(ex)}')
         if recursing >= _MAX_RECURSIVE_CALLS:
             if __debug__: log('returning NetworkFailure')
             return (req, NetworkFailure(addurl('Too many connection errors')))
@@ -167,7 +167,7 @@ def net(get_or_post, url, session = None, timeout = 20,
               and arg0.args and isinstance(args0.args[1], ConnectionResetError)):
             if __debug__: log('net() got ConnectionResetError; will recurse')
             sleep(1)                    # Sleep a short time and try again.
-            if __debug__: log('doing recursive call #{}', recursing + 1)
+            if __debug__: log(f'doing recursive call #{recursing + 1}')
             return net(get_or_post, url, session, timeout, polling,
                        recursing + 1, **kwargs)
         else:
@@ -191,7 +191,7 @@ def net(get_or_post, url, session = None, timeout = 20,
     # and 302 redirects automatically, so we don't need to do it here.
     code = req.status_code
     error = None
-    if __debug__: log(addurl('got http status code {}'.format(code)))
+    if __debug__: log(addurl(f'got http status code {code}'))
     if code == 400:
         error = RequestError(addurl('Server rejected the request'))
     elif code in [401, 402, 403, 407, 451, 511]:
@@ -199,15 +199,15 @@ def net(get_or_post, url, session = None, timeout = 20,
     elif code in [404, 410] and not polling:
         error = NoContent(addurl("No content found"))
     elif code in [405, 406, 409, 411, 412, 414, 417, 428, 431, 505, 510]:
-        error = InternalError(addurl('Server returned code {}'.format(code)))
+        error = InternalError(addurl(f'Server returned code {code}'))
     elif code in [415, 416]:
         error = ServiceFailure(addurl('Server rejected the request'))
     elif code == 429:
         if recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
-            if __debug__: log('rate limit hit -- sleeping {}', pause)
+            if __debug__: log(f'rate limit hit -- sleeping {pause}')
             sleep(pause)                  # 5 s, then 10 s, then 15 s, etc.
-            if __debug__: log('doing recursive call #{}', recursing + 1)
+            if __debug__: log(f'doing recursive call #{recursing + 1}')
             return net(get_or_post, url, session, timeout, polling,
                        recursing + 1, **kwargs)
         error = RateLimitExceeded('Server blocking further requests due to rate limits')
@@ -216,11 +216,11 @@ def net(get_or_post, url, session = None, timeout = 20,
     elif code == 504:
         error = ServiceFailure('Server timeout: ' + req.text)
     elif code in [500, 501, 502, 506, 507, 508]:
-        error = ServiceFailure(addurl('Server error (HTTP code {})'.format(code)))
+        error = ServiceFailure(addurl(f'Server error (HTTP code {code})'))
     elif not (200 <= code < 400):
-        error = NetworkFailure("Unable to resolve {}".format(url))
+        error = NetworkFailure(f'Unable to resolve {url}')
     if __debug__: log('returning result {}',
-                      'with error {}'.format(error) if error else 'without error')
+                      f'with error {error}' if error else 'without error')
     return (req, error)
 
 
@@ -252,7 +252,7 @@ def download_file(url, local_destination):
     try:
         download(url, local_destination)
     except Exception as ex:
-        if __debug__: log('download exception: {}', str(ex))
+        if __debug__: log(f'download exception: {str(ex)}')
         return False
     else:
         return True
@@ -261,7 +261,7 @@ def download_file(url, local_destination):
 def download(url, local_destination, recursing = 0):
     '''Download the 'url' to the file 'local_destination'.'''
     def addurl(text):
-        return (text + ' for {}').format(url)
+        return text + f' for {url}'
 
     try:
         req = timed_request('get', url, stream = True)
@@ -313,13 +313,13 @@ def download(url, local_destination, recursing = 0):
                 f.write(chunk)
         req.close()
         if __debug__: size = stat(local_destination).st_size
-        if __debug__: log('wrote {} bytes to file {}', size, local_destination)
+        if __debug__: log(f'wrote {size} bytes to file {local_destination}')
     elif code in [401, 402, 403, 407, 451, 511]:
         raise AuthenticationFailure(addurl('Access is forbidden'))
     elif code in [404, 410]:
         raise NoContent(addurl('No content found'))
     elif code in [405, 406, 409, 411, 412, 414, 417, 428, 431, 505, 510]:
-        raise InternalError(addurl('Server returned code {}'.format(code)))
+        raise InternalError(addurl(f'Server returned code {code}'))
     elif code in [415, 416]:
         raise ServiceFailure(addurl('Server rejected the request'))
     elif code == 429:
@@ -330,6 +330,6 @@ def download(url, local_destination, recursing = 0):
         if network_available():
             raise ServiceFailure(addurl('Server timeout: ' + req.text))
     elif code in [500, 501, 502, 506, 507, 508]:
-        raise ServiceFailure(addurl('Internal server error (HTTP code {})'.format(code)))
+        raise ServiceFailure(addurl(f'Internal server error (HTTP code {code})'))
     else:
-        raise NetworkFailure('Unable to resolve {}'.format(url))
+        raise NetworkFailure(f'Unable to resolve {url}')

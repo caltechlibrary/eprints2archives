@@ -215,7 +215,7 @@ class AppFrame(wx.Frame):
         if cancelled:
             if __debug__: log('user cancelled dialog')
         else:
-            if __debug__: log('file path from user: {}', file_path)
+            if __debug__: log(f'file path from user: {file_path}')
         return_queue.put(file_path)
 
 
@@ -228,7 +228,7 @@ class AppFrame(wx.Frame):
         if cancelled:
             if __debug__: log('user cancelled dialog')
         else:
-            if __debug__: log('file path from user: {}', file_path)
+            if __debug__: log(f'file path from user: {file_path}')
         return_queue.put(file_path)
 
 

@@ -59,7 +59,7 @@ else:
 
 def print_version():
     this_module = sys.modules[__package__]
-    print('{} version {}'.format(this_module.__name__, this_module.__version__))
-    print('Authors: {}'.format(this_module.__author__))
-    print('URL: {}'.format(this_module.__url__))
-    print('License: {}'.format(this_module.__license__))
+    print(f'{this_module.__name__} version {this_module.__version__}')
+    print(f'Authors: {this_module.__author__}')
+    print(f'URL: {this_module.__url__}')
+    print(f'License: {this_module.__license__}')

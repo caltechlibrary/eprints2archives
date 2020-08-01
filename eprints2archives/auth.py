@@ -22,7 +22,7 @@ from .ui import login_details
 # Global constants.
 # .............................................................................
 
-_KEYRING = "org.caltechlibrary.".format(__package__)
+_KEYRING = f'org.caltechlibrary.{__package__}'
 '''The name of the keyring used to store Caltech access credentials, if any.'''
 
 

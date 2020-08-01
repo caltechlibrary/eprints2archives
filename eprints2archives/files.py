@@ -134,11 +134,11 @@ def eprints2bags_path():
     if sys.platform.startswith('win'):
         from winreg import OpenKey, CloseKey, QueryValueEx, HKEY_LOCAL_MACHINE, KEY_READ
         try:
-            if __debug__: log('Reading Windows registry entry')
+            if __debug__: log('reading Windows registry entry')
             key = OpenKey(HKEY_LOCAL_MACHINE, _EPRINTS2BAGS_REG_PATH)
             value, regtype = QueryValueEx(key, 'Path')
             CloseKey(key)
-            if __debug__: log('Path to windows installation: {}'.format(value))
+            if __debug__: log(f'path to windows installation: {value}')
             return value
         except WindowsError:
             # Kind of a problem. Punt and return a default value.

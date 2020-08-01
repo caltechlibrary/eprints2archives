@@ -109,5 +109,5 @@ def styled(text, flags = None, colorize = True):
             try:
                 attribs &= getattr(colorful, c)
             except Exception:
-                if __debug__: log('colorful does not recognize color {}', c)
+                if __debug__: log(f'colorful does not recognize color {c}')
     return attribs | text

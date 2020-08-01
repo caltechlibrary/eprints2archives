@@ -77,13 +77,13 @@ class MainBody(Thread):
             self._do_main_work()
             inform('Done.')
         except (KeyboardInterrupt, UserCancelled) as ex:
-            if __debug__: log('got {} exception', type(ex).__name__)
+            if __debug__: log(f'got {type(ex).__name__} exception')
             inform('User cancelled operation -- stopping.')
         except CannotProceed as ex:
             self.exception = (CannotProceed, ex)
             return
         except Exception as ex:
-            if __debug__: log('exception in main body: {}', str(ex))
+            if __debug__: log(f'exception in main body: {str(ex)}')
             self.exception = sys.exc_info()
             alert_fatal('Error occurred during execution', details = str(ex))
             return
@@ -118,9 +118,9 @@ class MainBody(Thread):
             try:
                 self.lastmod = parse_datetime(self.lastmod)
                 self.lastmod_str = self.lastmod.strftime(DATE_FORMAT)
-                if __debug__: log('Parsed lastmod as {}', self.lastmod_str)
+                if __debug__: log(f'parsed lastmod as {self.lastmod_str}')
             except Exception as ex:
-                alert_fatal('Unable to parse lastmod value: {}', str(ex))
+                alert_fatal(f'Unable to parse lastmod value: {str(ex)}')
                 raise CannotProceed(ExitCode.bad_arg)
 
         # It's easier to use None as an indication of no restriction.
@@ -163,7 +163,7 @@ class MainBody(Thread):
             inform('Asking {} for index ...', styled(server, ['orange']))
             wanted = server.index()
             if len(wanted) == 0:
-                raise NoContent('Received empty list from {}'.format(server))
+                raise NoContent(f'Received empty list from {server}')
 
         # We switch strategies depending on what we need to get.  If we're
         # not going to filter by lastmod or status, then we don't need to get
@@ -186,11 +186,11 @@ class MainBody(Thread):
                     value = server.record_value(r, 'lastmod', self.errors_ok)
                     timestamp = parse_datetime(value)
                     if timestamp < self.lastmod:
-                        if __debug__: log('{} lastmod {} -- skipping', r, timestamp)
+                        if __debug__: log(f'{r} lastmod {timestamp} -- skipping')
                         skipped.append(r)
                     else:
                         subset.append(r)
-                inform('{} records were modified after {}', len(subset), self.lastmod_str)
+                inform(f'{len(subset)} records were modified after {self.lastmod_str}')
                 records = subset
             if self.status:
                 subset = []
@@ -220,6 +220,9 @@ class MainBody(Thread):
         if num_urls > 1000:
             inform('This is going to take {} time -- do not be alarmed',
                    'an extremely long' if num_urls > 10000 else 'a long')
+        if self.report_file:
+            inform('A report of the results will be written to "{}"', self.report_file)
+
         self._send(urls)
 
 
@@ -228,7 +231,7 @@ class MainBody(Thread):
             num_records = len(record_list)
             results = []
             for index, record in enumerate(record_list):
-                if __debug__: log('getting official_url for record #{}', record)
+                if __debug__: log(f'getting official_url for record #{record}')
                 url = server.record_value(record, 'official_url', missing_ok)
                 if url:
                     results.append(url)
@@ -245,7 +248,7 @@ class MainBody(Thread):
             num_records = len(record_list)
             results = []
             for index, record in enumerate(record_list):
-                if __debug__: log('getting official_url for record #{}', record)
+                if __debug__: log(f'getting official_url for record #{record}')
                 xml = server.record_xml(record, missing_ok)
                 if xml is not None:
                     results.append(xml)
@@ -264,8 +267,8 @@ class MainBody(Thread):
                       TextColumn('{task.completed}/' + intcomma(num_wanted)),
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
-            styled_name = '[spring_green1]{}[/spring_green1]'.format(server)
-            header  = '[green]Getting {} from {} ...'.format(text, styled_name)
+            styled_name = f'[spring_green1]{server}[/spring_green1]'
+            header  = f'[green]Getting {text} from {styled_name} ...'
             bar = progress.add_task(header, done = 0, total = num_wanted)
             update_progress = lambda: progress.update(bar, advance = 1)
 
@@ -275,7 +278,7 @@ class MainBody(Thread):
 
             # In the parallel case, we'll get a list of lists, which we flatten.
             num_threads = min(num_wanted, threads)
-            if __debug__: log('using {} threads to gather records', num_threads)
+            if __debug__: log(f'using {num_threads} threads to gather records')
             with ThreadPoolExecutor(max_workers = num_threads) as e:
                 # Don't use TPE map() b/c it doesn't bubble up exceptions.
                 futures = []
@@ -294,19 +297,18 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
 
             def send_to_service(dest, pbar):
-                header  = '[green]Sending URLs to [{}]{}[/{}] ...'.format(
-                    dest.color, dest.name, dest.color)
+                header  = f'[green]Sending URLs to [{dest.color}]{dest.name}[/{dest.color}] ...'
                 added = skipped = 0
                 bar = pbar.add_task(header, total = num_urls, added = 0, skipped = 0)
                 for index, url in enumerate(urls_to_send):
-                    if __debug__: log('next for {}: {}', dest, url)
+                    if __debug__: log(f'next for {dest}: {url}')
                     (result, num_existing) = dest.save(url, self.force)
-                    if __debug__: log('result = {}', result)
+                    if __debug__: log(f'result = {result}')
                     added += int(result is True)
                     skipped += int(result is False)
                     pbar.update(bar, advance = 1, added = added, skipped = skipped)
 
-            if __debug__: log('starting {} threads', self.threads)
+            if __debug__: log(f'starting {self.threads} threads')
             if self.threads == 1:
                 # For 1 thread, avoid thread pool to make debugging easier.
                 results = [send_to_service(d, progress) for d in self.dest]
@@ -340,9 +342,9 @@ def parsed_id_list(id_list):
         candidate = path.realpath(path.join(os.getcwd(), candidate))
     if path.exists(candidate):
         if not readable(candidate):
-            raise RuntimeError('File not readable: {}'.format(candidate))
+            raise RuntimeError(f'File not readable: {candidate}')
         with open(candidate, 'r', encoding = 'utf-8-sig') as file:
-            if __debug__: log('Reading {}'.format(candidate))
+            if __debug__: log(f'reading {candidate}')
             return [id.strip() for id in file.readlines()]
 
     # Didn't find a file.  Try to parse as multiple numbers.
