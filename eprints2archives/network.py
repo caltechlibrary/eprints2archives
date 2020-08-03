@@ -84,11 +84,14 @@ def netloc(url):
     return parsed.netloc
 
 
-def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
-    '''Perform a network "get" or "post", handling timeouts and retries.
-    If "session" is not None, it is used as a requests.Session object.
-    "Timeout" is a timeout (in seconds) on the network requests get or post.
-    Other keyword arguments are passed to the network call.
+def timed_request(method, url, session = None, timeout = 20, **kwargs):
+    '''Perform a network access (e.g., "get"), handling timeouts and retries.
+
+    The value given to parameter "method" must be a string chosen from among
+    valid HTTP methods, such as "get", "post", or "head".  If "session" is
+    not None, it is used as a requests.Session object. "Timeout" is a timeout
+    (in seconds) on the network requests get or post. Other keyword arguments
+    are passed to the network call.
     '''
     failures = 0
     retries = 0
@@ -101,13 +104,10 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
                 # We don't care here.  See also this for a discussion:
                 # https://github.com/kennethreitz/requests/issues/2214
                 warnings.simplefilter("ignore", InsecureRequestWarning)
-                if __debug__: log(f'doing http {get_or_post} on {url}')
-                if session:
-                    method = getattr(session, get_or_post)
-                else:
-                    method = requests.get if get_or_post == 'get' else requests.post
-                response = method(url, timeout = timeout, verify = False, **kwargs)
-                if __debug__: log('response received')
+                if __debug__: log(f'doing http {method} on {url}')
+                func = getattr(session, method) if session else getattr(requests, method)
+                response = func(url, timeout = timeout, verify = False, **kwargs)
+                if __debug__: log(f'response received: {response}')
                 return response
         except Exception as ex:
             # Problem might be transient.  Don't quit right away.
@@ -119,6 +119,7 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
             if not error:
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
+            if __debug__: log('pausing for 1s')
             sleep(1)
         if failures >= _MAX_FAILURES:
             # Pause with exponential back-off, reset failure count & try again.
@@ -132,9 +133,10 @@ def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
                 raise error
 
 
-def net(get_or_post, url, session = None, timeout = 20,
+def net(method, url, session = None, timeout = 20,
         polling = False, recursing = 0, **kwargs):
-    '''Gets or posts the 'url' with optional keyword arguments provided.
+    '''Invoke HTTP "method" on 'url' with optional keyword arguments provided.
+
     Returns a tuple of (response, exception), where the first element is
     the response from the get or post http call, and the second element is
     an exception object if an exception occurred.  If no exception occurred,
@@ -155,7 +157,7 @@ def net(get_or_post, url, session = None, timeout = 20,
 
     req = None
     try:
-        req = timed_request(get_or_post, url, session, timeout,
+        req = timed_request(method, url, session, timeout,
                             allow_redirects = True, **kwargs)
     except requests.exceptions.ConnectionError as ex:
         if __debug__: log(f'got network exception: {str(ex)}')
@@ -178,8 +180,7 @@ def net(get_or_post, url, session = None, timeout = 20,
             if __debug__: log('net() got ConnectionResetError; will recurse')
             sleep(1)                    # Sleep a short time and try again.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
-            return net(get_or_post, url, session, timeout, polling,
-                       recursing + 1, **kwargs)
+            return net(method, url, session, timeout, polling, recursing + 1, **kwargs)
         else:
             if __debug__: log('returning NetworkFailure')
             return (req, NetworkFailure(str(ex)))
@@ -218,8 +219,7 @@ def net(get_or_post, url, session = None, timeout = 20,
             if __debug__: log(f'rate limit hit -- sleeping {pause}')
             sleep(pause)                  # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
-            return net(get_or_post, url, session, timeout, polling,
-                       recursing + 1, **kwargs)
+            return net(method, url, session, timeout, polling, recursing + 1, **kwargs)
         error = RateLimitExceeded('Server blocking further requests due to rate limits')
     elif code == 503:
         error = ServiceFailure(f'{req.reason}')
