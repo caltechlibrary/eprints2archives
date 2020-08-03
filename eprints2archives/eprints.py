@@ -109,7 +109,7 @@ class EPrintsServer():
         if isinstance(id_or_record, str) or isinstance(id_or_record, int):
             url = base + str(id_or_record)
         else:
-            url = base + self._xml_field_value(xml, 'eprintid')
+            url = base + self._xml_field_value(id_or_record, 'eprintid')
         return url
 
 
