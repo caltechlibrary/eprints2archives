@@ -47,3 +47,13 @@ def parse_datetime(string):
     '''Parse a human-written time/date string using dateparser's parse()
 function with predefined settings.'''
     return dateparser.parse(string, settings = {'RETURN_AS_TIMEZONE_AWARE': True})
+
+
+def plural(word, count):
+    '''Simple pluralization; adds "s" to the end of "word" if count > 1.'''
+    if isinstance(count, int):
+        return word + 's' if count > 1 else word
+    elif isinstance(count, (list, set, dict)):
+        return word + 's' if len(count) > 1 else word
+    else:
+        return word
