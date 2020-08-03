@@ -38,18 +38,19 @@ class InternetArchive(Service):
 
     def save(self, url, force = False):
         '''Ask the service to save "url".'''
+        if force:
+            # If we're forcing a send, we don't care how many there exist.
+            added = self._archive(url)
+            return (added, -1)
+
         existing = self._saved_copies(url)
         if existing:
             if 'mementos' in existing and 'list' in existing['mementos']:
                 num_existing = len(existing['mementos']['list'])
                 if __debug__: log(f'there are {num_existing} mementos for {url}')
+                return (False, num_existing)
             else:
                 raise InternalError('unexpected TimeMap format from IA')
-            if force:
-                added = self._archive(url)
-                return (added, num_existing)
-            else:
-                return (False, num_existing)
         else:
             if __debug__: log(f'IA returned no mementos for {url}')
             added = self._archive(url)
