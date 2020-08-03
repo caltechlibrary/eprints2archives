@@ -24,7 +24,7 @@ import shutil
 from .data_helpers import parse_datetime
 from .debug import log
 from .exceptions import *
-from .network import net, hostname
+from .network import net, hostname, scheme, netloc
 from .ui import warn, alert
 
 
@@ -43,6 +43,8 @@ class EPrintsServer():
     def __init__(self, api_url, user, password):
         if __debug__: log('creating EPrintsServer object for ', api_url)
         self._api_url    = api_url
+        self._protocol   = scheme(self._api_url)
+        self._netloc     = netloc(self._api_url)
         self._hostname   = hostname(self._api_url)
         self._user       = user
         self._password   = password
@@ -101,36 +103,42 @@ class EPrintsServer():
             return self._index
 
 
-    def record_xml(self, record_id, missing_ok):
+    def record_url(self, id_or_record):
+        '''Return the normal URL of the web page for the record on this server.'''
+        base = self._protocol + '://' + self._netloc + '/'
+        if isinstance(id_or_record, str) or isinstance(id_or_record, int):
+            url = base + str(id_or_record)
+        else:
+            url = base + self._xml_field_value(xml, 'eprintid')
+        return url
+
+
+    def record_xml(self, record_id):
         '''Return an XML object identified by the given record identifier.'''
         record_id = str(record_id)
         if record_id in self._records:
             if __debug__: log(f'returning cached XML for record {record_id}')
             return self._records[record_id]
 
-        if __debug__: log('getting XML for {record_id} from server')
+        if __debug__: log(f'getting XML for {record_id} from server')
         try:
-            response = self._get(f'/eprint/{record_id}.xml', missing_ok)
-        except AuthenticationFailure as ex:
+            response = self._get(f'/eprint/{record_id}.xml')
+        except Exception as ex:
             # Our EPrints server sometimes returns with access forbidden for
-            # specific records.  When ignoring missing entries, I guess it
-            # makes sense to just flag them and move on.
-            if missing_ok:
-                warn(str(error) + f' for record {record_id}')
-                self._records[record_id] = None
-                return None
-            else:
-                raise error
-        if response is None and missing_ok:
-            warn(f'Server has no contents for record {record_id}')
+            # specific records.  Our caller may simply move on, so we store
+            # a value before bubbling up the exception.
+            if __debug__: log(f'{str(ex)} for {record_id}')
+            self._records[record_id] = None
+            raise ex
+        if response is None:
             self._records[record_id] = None
             return None
         xml = etree.fromstring(response.content)
-        self._records[str(record_id)] = xml
+        self._records[record_id] = xml
         return xml
 
 
-    def record_value(self, id_or_record, field, missing_ok):
+    def record_field(self, id_or_record, field):
         '''Return the value of 'field' of the record 'id_or_record'.  If
         'id_or_record' is a number (either as a string or an integer), this
         method will ask the server for the field value using the REST API;
@@ -147,7 +155,7 @@ class EPrintsServer():
                 # Contact the server.
                 if __debug__: log(f'{id_or_record} not cached -- asking server')
                 field_url = f'/eprint/{id_or_record}/{field}.txt'
-                response = self._get(field_url, missing_ok)
+                response = self._get(field_url)
                 return response.text if response else ''
         else:
             xml = id_or_record
@@ -156,7 +164,7 @@ class EPrintsServer():
 
     # Internal methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def _get(self, op, missing_ok = True):
+    def _get(self, op):
         if not self._api_url:
             return None
 
@@ -174,10 +182,8 @@ class EPrintsServer():
         (response, error) = net('get', endpoint)
         if not error and response:
             return response
-        elif isinstance(error, (NoContent, AuthenticationFailure)) and missing_ok:
-            if __debug__: log(f'got {type(error)} error for {url}')
-            return None
         else:
+            if __debug__: log(f'got {type(error)} error for {url}')
             raise error
 
 
