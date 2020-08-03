@@ -85,7 +85,7 @@ class MainBody(Thread):
         except Exception as ex:
             if __debug__: log(f'exception in main body: {str(ex)}')
             self.exception = sys.exc_info()
-            alert_fatal('Error occurred during execution', details = str(ex))
+            alert_fatal(f'Error occurred during execution:', details = str(ex))
             return
         if __debug__: log('finished')
 
@@ -145,7 +145,7 @@ class MainBody(Thread):
                     raise CannotProceed(ExitCode.bad_arg)
             self.dest = destination_list
 
-        text = 'EPrints server at ' + hostname(self.api_url)
+        text = 'Login for EPrints server at ' + hostname(self.api_url)
         self.user, self.password, cancel = self.auth_handler.name_and_password(text)
         if cancel:
             raise UserCancelled
@@ -157,13 +157,25 @@ class MainBody(Thread):
         self._do_preflight()
 
         server = EPrintsServer(self.api_url, self.user, self.password)
-        wanted = self.wanted
 
-        if not wanted:
-            inform('Asking {} for index ...', styled(server, ['orange']))
-            wanted = server.index()
-            if len(wanted) == 0:
-                raise NoContent(f'Received empty list from {server}')
+        inform('Getting EPrints index from {} ...', styled(server, ['SpringGreen']))
+        available = server.index()
+        if not available:
+            raise NoContent(f'Received empty list from {server}.')
+
+        # If the user wants specific records, check which ones actually exist.
+        if self.wanted:
+            nonexistent = list(set(self.wanted) - set(available))
+            if nonexistent and not self.errors_ok:
+                raise ValueError(f'{intcomma(len(nonexistent))} of the requested'
+                                 + ' records do not exist on the server.')
+            elif nonexistent:
+                warn(f"Records {self.id_list} were specified, but the following"
+                     + " don't exist and will be skipped: "
+                     + ', '.join(str(x) for x in sorted(nonexistent, key = int)) + '.')
+            wanted = sorted(list(set(self.wanted) - set(nonexistent)), key = int)
+        else:
+            wanted = available
 
         # We switch strategies depending on what we need to get.  If we're
         # not going to filter by lastmod or status, then we don't need to get
@@ -171,126 +183,113 @@ class MainBody(Thread):
         # server for that directly, and that saves bandwidth and is a little
         # faster.  Conversely, if we need to filter by any value, it takes
         # less time to get the XML of every record rather than ask for 2 or
-        # more field values separately, because each EPrint lookup is slow
+        # more field values separately, because each such EPrint fetch is slow
         # and doing 2 or more lookups per record is slower than doing one
         # lookup (even if it entails downloading more data per record).
 
-        skipped = []
         if not self.lastmod and not self.status:
-            urls = self._urls_for_ids(wanted, server, self.threads, self.errors_ok)
+            urls = [server.record_url(r) for r in wanted]
+            official_url = lambda r: server.record_field(r, 'official_url')
+            urls += self._eprints_data(official_url, wanted, server, "official_url values")
         else:
-            records = self._records_for_ids(wanted, server, self.threads, self.errors_ok)
-            if self.lastmod:
-                subset = []
-                for r in records:
-                    value = server.record_value(r, 'lastmod', self.errors_ok)
-                    timestamp = parse_datetime(value)
-                    if timestamp < self.lastmod:
-                        if __debug__: log(f'{r} lastmod {timestamp} -- skipping')
-                        skipped.append(r)
-                    else:
-                        subset.append(r)
-                inform(f'{len(subset)} records were modified after {self.lastmod_str}')
-                records = subset
-            if self.status:
-                subset = []
-                for r in records:
-                    status = server.record_value(r, 'eprint_status', self.errors_ok)
-                    if ((not self.status_negation and status not in self.status)
-                        or (self.status_negation and status in self.status)):
-                        skipped.append(r)
-                    else:
-                        subset.append(r)
-                records = subset
-                inform('{} records are {} status {}', len(subset),
-                       'without' if self.status_negation else 'with',
-                       fmt_statuses(self.status, self.status_negation))
-            urls = [server.record_value(r, 'official_url', self.errors_ok) for r in records]
+            records = []
+            skipped = []
+            xml = lambda r: server.record_xml(r)
+            for record in self._eprints_data(xml, wanted, server, 'record XML'):
+                eprintid = server.record_field(record, 'eprintid')
+                modtime  = server.record_field(record, 'lastmod')
+                status   = server.record_field(record, 'eprint_status')
+                if modtime is None or status is None:
+                    field = 'lastmod' if modtime is None else 'eprint_status'
+                    warn(f'{eprintid} has no {field} value.')
+                    skipped.append(record)
+                    continue
+                if self.lastmod and parse_datetime(modtime) >= self.lastmod:
+                    records.append(record)
+                else:
+                    if __debug__: log(f'lastmod of {eprintid} is too old -- skipping')
+                    skipped.append(record)
+                if self.status and self._status_acceptable(status):
+                    records.append(record)
+                else:
+                    if __debug__: log(f'status of {eprintid} is {status} -- skipping')
+                    skipped.append(record)
+            if len(skipped) > 0:
+                inform(f'Skipping a total of {len(skipped)} records due to filtering.')
+            urls = [server.record_url(r) for r in records]
+            urls += [server.record_field(r, 'official_url') for r in records]
 
         num_urls = len(urls)
         if num_urls == 0:
             warn('List of URLs is empty -- nothing to archive')
             return
 
-        if len(skipped) > 0:
-            inform('Skipping a total of {} records due to filtering', len(skipped))
-        inform('Sending {} EPrints {} to {} archiving service{}',
-               intcomma(num_urls), 'entries' if num_urls > 1 else 'entry',
+        inform('Sending {} URL{} to {} archiving service{}.',
+               intcomma(num_urls), 's' if num_urls > 1 else '',
                len(self.dest), 's' if len(self.dest) > 1 else '')
         if num_urls > 1000:
-            inform('This is going to take {} time -- do not be alarmed',
+            inform('This is going to take {} time -- do not be alarmed.',
                    'an extremely long' if num_urls > 10000 else 'a long')
         if self.report_file:
-            inform('A report of the results will be written to "{}"', self.report_file)
+            inform(f'A report of the results will be written to "{self.report_file}"')
 
         self._send(urls)
 
 
-    def _urls_for_ids(self, wanted, server, threads, missing_ok):
-        def urls_for_records(record_list, update_progress):
-            num_records = len(record_list)
+    def _eprints_data(self, value_function, items, server, description):
+
+        # Helper function: body of loop that is executed in all cases.
+        def loop(item_list, update_progress):
             results = []
-            for index, record in enumerate(record_list):
-                if __debug__: log(f'getting official_url for record #{record}')
-                url = server.record_value(record, 'official_url', missing_ok)
-                if url:
-                    results.append(url)
-                elif not missing_ok:
-                    warn('Could not get official_url for record #{}', record)
+            for index, item in enumerate(item_list):
+                if __debug__: log(f'getting data for {item}')
+                try:
+                    data = value_function(item)
+                    if data is not None:
+                        results.append(data)
+                    elif not self.errors_ok:
+                        warn(f'Received no data for {item}')
+                except Exception as ex:
+                    if isinstance(ex, NoContent) and self.errors_ok:
+                        warn(f'Server has no content for {item}')
+                    elif isinstance(ex, AuthenticationFailure) and self.errors_ok:
+                        warn(f'Authentication failure trying to get data for {item}')
+                    else:
+                        warn(f'Unable to get data for {item}')
                 update_progress()
             return results
 
-        return self._gather(urls_for_records, wanted, threads, server, 'URLs')
-
-
-    def _records_for_ids(self, wanted, server, threads, missing_ok):
-        def xml_for_records(record_list, update_progress):
-            num_records = len(record_list)
-            results = []
-            for index, record in enumerate(record_list):
-                if __debug__: log(f'getting official_url for record #{record}')
-                xml = server.record_xml(record, missing_ok)
-                if xml is not None:
-                    results.append(xml)
-                elif not missing_ok:
-                    warn('Could not get XML for record #{}', record)
-                update_progress()
-            return results
-
-        return self._gather(xml_for_records, wanted, threads, server, 'records')
-
-
-    def _gather(self, func, wanted, threads, server, text):
-        num_wanted = len(wanted)
+        # Start of actual procedure.
+        num_items = len(items)
         with Progress('[progress.description]{task.description}',
                       BarColumn(bar_width = None),
-                      TextColumn('{task.completed}/' + intcomma(num_wanted)),
+                      TextColumn('{task.completed}/' + intcomma(num_items)),
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
-            styled_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Getting {text} from {styled_name} ...'
-            bar = progress.add_task(header, done = 0, total = num_wanted)
+            server_name = f'[spring_green1]{server}[/spring_green1]'
+            header  = f'[green]Getting {description} from {server_name} ...'
+            bar = progress.add_task(header, done = 0, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
-            # If we want only a few records, don't bother going parallel.
-            if threads == 1 or num_wanted <= (threads * _PARALLEL_THRESHOLD):
-                return func(wanted, update_progress)
+            # If the number of items is too small, don't bother going parallel.
+            if self.threads == 1 or num_items <= (self.threads * _PARALLEL_THRESHOLD):
+                return loop(items, update_progress)
 
-            # In the parallel case, we'll get a list of lists, which we flatten.
-            num_threads = min(num_wanted, threads)
+            num_threads = min(num_items, self.threads)
             if __debug__: log(f'using {num_threads} threads to gather records')
             with ThreadPoolExecutor(max_workers = num_threads) as e:
                 # Don't use TPE map() b/c it doesn't bubble up exceptions.
                 futures = []
-                for group in slice(wanted, num_threads):
-                    futures.append(e.submit(func, group, update_progress))
+                for sublist in slice(items, num_threads):
+                    futures.append(e.submit(loop, sublist, update_progress))
+                # We get a list of lists, so flatten it before returning.
                 return flatten(f.result() for f in futures)
 
 
     def _send(self, urls_to_send):
         num_urls = len(urls_to_send)
         if self.force:
-            inform('Force option given ⟹  adding URLs even if archives have copies')
+            inform('Force option given ⟹  adding URLs even if archives have copies.')
         with Progress('[progress.description]{task.description}',
                       BarColumn(bar_width = None),
                       TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped'),
@@ -321,6 +320,11 @@ class MainBody(Thread):
                     for service in self.dest:
                         futures.append(e.submit(send_to_service, service, progress))
                     results = [f.result() for f in futures]
+
+
+    def _status_acceptable(self, status):
+        return ((not self.status_negation and status in self.status)
+                or (self.status_negation and status not in self.status))
 
 
 # Helper functions.
