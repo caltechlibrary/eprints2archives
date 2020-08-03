@@ -25,7 +25,7 @@ import time
 from   timeit import default_timer as timer
 import validators.url
 
-from .data_helpers import DATE_FORMAT, slice, expand_range, parse_datetime
+from .data_helpers import DATE_FORMAT, slice, expand_range, parse_datetime, plural
 from .debug import log
 from .eprints import *
 from .exceptions import *
@@ -112,7 +112,7 @@ class MainBody(Thread):
             raise CannotProceed(ExitCode.bad_arg)
 
         # The id's are stored as strings, not ints, to avoid repeated conversion
-        self.wanted = parsed_id_list(self.id_list)
+        self.wanted_list = parsed_id_list(self.id_list)
 
         if self.lastmod:
             try:
@@ -156,7 +156,7 @@ class MainBody(Thread):
 
         self._do_preflight()
 
-        server = EPrintsServer(self.api_url, self.user, self.password)
+        server = EPrintServer(self.api_url, self.user, self.password)
 
         inform('Getting EPrints index from {} ...', styled(server, ['SpringGreen']))
         available = server.index()
@@ -164,8 +164,8 @@ class MainBody(Thread):
             raise NoContent(f'Received empty list from {server}.')
 
         # If the user wants specific records, check which ones actually exist.
-        if self.wanted:
-            nonexistent = list(set(self.wanted) - set(available))
+        if self.wanted_list:
+            nonexistent = list(set(self.wanted_list) - set(available))
             if nonexistent and not self.errors_ok:
                 raise ValueError(f'{intcomma(len(nonexistent))} of the requested'
                                  + ' records do not exist on the server.')
@@ -173,70 +173,67 @@ class MainBody(Thread):
                 warn(f"Records {self.id_list} were specified, but the following"
                      + " don't exist and will be skipped: "
                      + ', '.join(str(x) for x in sorted(nonexistent, key = int)) + '.')
-            wanted = sorted(list(set(self.wanted) - set(nonexistent)), key = int)
+            wanted = sorted(list(set(self.wanted_list) - set(nonexistent)), key = int)
         else:
             wanted = available
 
-        # We switch strategies depending on what we need to get.  If we're
-        # not going to filter by lastmod or status, then we don't need to get
-        # more than the official_url field for each record.  We can ask the
+        # We switch strategies for getting official_url depending on filters.
+        # If we're not filtering by lastmod or status, then we don't need to
+        # get more than the official_url field for each record.  We can ask the
         # server for that directly, and that saves bandwidth and is a little
         # faster.  Conversely, if we need to filter by any value, it takes
         # less time to get the XML of every record rather than ask for 2 or
         # more field values separately, because each such EPrint fetch is slow
         # and doing 2 or more lookups per record is slower than doing one
-        # lookup (even if it entails downloading more data per record).
+        # lookup (even if that one entails downloading more data per record).
 
+        records = []
         if not self.lastmod and not self.status:
-            urls = [server.record_url(r) for r in wanted]
-            official_url = lambda r: server.record_field(r, 'official_url')
-            urls += self._eprints_data(official_url, wanted, server, "official_url values")
+            official_url = lambda r: server.eprint_value(r, 'official_url')
+            urls = self._eprints(official_url, wanted, server, "official_url values")
         else:
-            records = []
             skipped = []
-            xml = lambda r: server.record_xml(r)
-            for record in self._eprints_data(xml, wanted, server, 'record XML'):
-                eprintid = server.record_field(record, 'eprintid')
-                modtime  = server.record_field(record, 'lastmod')
-                status   = server.record_field(record, 'eprint_status')
-                if modtime is None or status is None:
-                    field = 'lastmod' if modtime is None else 'eprint_status'
-                    warn(f'{eprintid} has no {field} value.')
-                    skipped.append(record)
+            for r in self._eprints(server.eprint_xml, wanted, server, 'XML records'):
+                eprintid = server.eprint_value(r, 'eprintid')
+                if self.lastmod:
+                    modtime = server.eprint_value(r, 'lastmod')
+                    if modtime and parse_datetime(modtime) >= self.lastmod:
+                        records.append(r)
+                    else:
+                        if __debug__: log(f'{eprintid} lastmod == {modtime} -- skipping')
+                        skipped.append(r)
                     continue
-                if self.lastmod and parse_datetime(modtime) >= self.lastmod:
-                    records.append(record)
-                else:
-                    if __debug__: log(f'lastmod of {eprintid} is too old -- skipping')
-                    skipped.append(record)
-                if self.status and self._status_acceptable(status):
-                    records.append(record)
-                else:
-                    if __debug__: log(f'status of {eprintid} is {status} -- skipping')
-                    skipped.append(record)
+                if self.status:
+                    status = server.eprint_value(r, 'eprint_status')
+                    if status and self._status_acceptable(status):
+                        records.append(r)
+                    else:
+                        if __debug__: log(f'{eprintid} status == {status} -- skipping')
+                        skipped.append(r)
             if len(skipped) > 0:
-                inform(f'Skipping a total of {len(skipped)} records due to filtering.')
-            urls = [server.record_url(r) for r in records]
-            urls += [server.record_field(r, 'official_url') for r in records]
+                inform(f'Skipping {len(skipped)} records due to filtering.')
+            urls = [server.eprint_value(r, 'official_url') for r in records]
+
+        # Get the normal URLs
+        inform('Constructing list of valid EPrint URLs ...')
+        urls += [server.eprint_id_url(r) for r in (wanted or records)]
+        urls += [server.eprint_page_url(r) for r in (wanted or records)]
+        urls = list(filter(None, urls))
 
         num_urls = len(urls)
         if num_urls == 0:
             warn('List of URLs is empty -- nothing to archive')
             return
 
-        inform('Sending {} URL{} to {} archiving service{}.',
-               intcomma(num_urls), 's' if num_urls > 1 else '',
-               len(self.dest), 's' if len(self.dest) > 1 else '')
-        if num_urls > 1000:
-            inform('This is going to take {} time -- do not be alarmed.',
-                   'an extremely long' if num_urls > 10000 else 'a long')
+        inform(f'Sending {intcomma(num_urls)} {plural("URL", urls)}'
+               + f' to {len(self.dest)} {plural("archiving service", self.dest)}.')
         if self.report_file:
             inform(f'A report of the results will be written to "{self.report_file}"')
 
         self._send(urls)
 
 
-    def _eprints_data(self, value_function, items, server, description):
+    def _eprints(self, value_function, items, server, description):
 
         # Helper function: body of loop that is executed in all cases.
         def loop(item_list, update_progress):
