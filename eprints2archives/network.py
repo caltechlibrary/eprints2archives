@@ -74,6 +74,16 @@ def hostname(url):
     return parsed.hostname
 
 
+def scheme(url):
+    parsed = urllib.parse.urlsplit(url)
+    return parsed.scheme
+
+
+def netloc(url):
+    parsed = urllib.parse.urlsplit(url)
+    return parsed.netloc
+
+
 def timed_request(get_or_post, url, session = None, timeout = 20, **kwargs):
     '''Perform a network "get" or "post", handling timeouts and retries.
     If "session" is not None, it is used as a requests.Session object.
@@ -199,9 +209,9 @@ def net(get_or_post, url, session = None, timeout = 20,
     elif code in [404, 410] and not polling:
         error = NoContent(addurl("No content found"))
     elif code in [405, 406, 409, 411, 412, 414, 417, 428, 431, 505, 510]:
-        error = InternalError(addurl(f'Server returned code {code}'))
+        error = InternalError(addurl(f'Server returned code {code} ({req.reason})'))
     elif code in [415, 416]:
-        error = ServiceFailure(addurl('Server rejected the request'))
+        error = ServiceFailure(addurl('Server rejected the request ({req.reason})'))
     elif code == 429:
         if recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
@@ -212,11 +222,11 @@ def net(get_or_post, url, session = None, timeout = 20,
                        recursing + 1, **kwargs)
         error = RateLimitExceeded('Server blocking further requests due to rate limits')
     elif code == 503:
-        error = ServiceFailure('Server is unavailable -- try again later')
+        error = ServiceFailure(f'{req.reason}')
     elif code == 504:
-        error = ServiceFailure('Server timeout: ' + req.text)
+        error = ServiceFailure(f'Server timeout: {req.reason}')
     elif code in [500, 501, 502, 506, 507, 508]:
-        error = ServiceFailure(addurl(f'Server error (HTTP code {code})'))
+        error = ServiceFailure(addurl(f'Server error (server code {code} -- {req.reason})'))
     elif not (200 <= code < 400):
         error = NetworkFailure(f'Unable to resolve {url}')
     if __debug__: log('returning result {}',
