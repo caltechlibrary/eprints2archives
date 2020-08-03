@@ -38,7 +38,7 @@ _EPRINTS_XMLNS = 'http://eprints.org/ep2/data/2.0'
 # Main functions.
 # .............................................................................
 
-class EPrintsServer():
+class EPrintServer():
 
     def __init__(self, api_url, user, password):
         if __debug__: log('creating EPrintsServer object for ', api_url)
@@ -103,49 +103,109 @@ class EPrintsServer():
             return self._index
 
 
-    def record_url(self, id_or_record):
-        '''Return the normal URL of the web page for the record on this server.'''
-        base = self._protocol + '://' + self._netloc + '/'
-        if isinstance(id_or_record, str) or isinstance(id_or_record, int):
-            url = base + str(id_or_record)
+    def eprint_id_url(self, id_or_record, verify = True):
+        '''Return the main URL of the web page for the record on this server.
+
+        This URL is for the page located at "https://.../id/eprint/N", where N
+        is the eprint id of the record in question.  Note that EPrints servers
+        typically also make the same records available from a URL of the form
+        "https://.../N"; this other form is returned by the companion method
+        eprint_page_url().
+
+        The argument value for "id_or_record" can be either an identifier or
+        an EPrint XML object (as a Python lxml.etree object).
+
+        A server's index may report EPrint record identifiers for records that
+        are not actually exposed to the public (e.g., because they've been
+        deleted or otherwise marked as not publicly displayed).  Thus, given
+        an identifier or even an XML record, it is possible to create URLs
+        that do not lead to valid web pages.  Without additional knowledge
+        about a specific server's conventions for public/private record
+        visibility, the only way to know is to attempt to access the web page
+        at the expected address.  Consequently, this method will attempt to do
+        a network lookup on the URL, unless the parameter "verify" is given a
+        value of False.
+        '''
+        if isinstance(id_or_record, (str, int)):
+            url = f'{self._protocol}://{self._netloc}/id/eprint/{id_or_record}'
         else:
-            url = base + self._xml_field_value(id_or_record, 'eprintid')
+            eprintid = self._xml_field_value(id_or_record, 'eprintid')
+            url = f'{self._protocol}://{self._netloc}/id/eprint/{eprintid}'
+        if verify:
+            (response, error) = net('head', url, timeout = 10)
+            if error:
+                return None
         return url
 
 
-    def record_xml(self, record_id):
-        '''Return an XML object identified by the given record identifier.'''
-        record_id = str(record_id)
-        if record_id in self._records:
-            if __debug__: log(f'returning cached XML for record {record_id}')
-            return self._records[record_id]
+    def eprint_page_url(self, id_or_record, verify = True):
+        '''Return the web page address for the record on this server.
 
-        if __debug__: log(f'getting XML for {record_id} from server')
+        This URL is for the page located at "https://.../N", where N is the
+        eprint id of the record in question.  Note that EPrints servers
+        typically also make the same records available from a URL of the form
+        "https://.../id/eprint/N"; this other form is returned by the companion
+        method eprint_id_url().
+
+        The argument value for "id_or_record" can be either an identifier or
+        an EPrint XML object (as a Python lxml.etree object).
+
+        A server's index may report EPrint record identifiers for records that
+        are not actually exposed to the public (e.g., because they've been
+        deleted or otherwise marked as not publicly displayed).  Thus, given
+        an identifier or even an XML record, it is possible to create URLs
+        that do not lead to valid web pages.  Without additional knowledge
+        about a specific server's conventions for public/private record
+        visibility, the only way to know is to attempt to access the web page
+        at the expected address.  Consequently, this method will attempt to do
+        a network lookup on the URL, unless the parameter "verify" is given a
+        value of False.
+        '''
+        if isinstance(id_or_record, (str, int)):
+            url = f'{self._protocol}://{self._netloc}/{id_or_record}'
+        else:
+            eprintid = self._xml_field_value(id_or_record, 'eprintid')
+            url = f'{self._protocol}://{self._netloc}/{eprintid}'
+        if verify:
+            (response, error) = net('head', url, timeout = 10)
+            if error:
+                return None
+        return url
+
+
+    def eprint_xml(self, eprintid):
+        '''Return an XML object identified by the given record identifier.'''
+        eprintid = str(eprintid)
+        if eprintid in self._records:
+            if __debug__: log(f'returning cached XML for record {eprintid}')
+            return self._records[eprintid]
+
+        if __debug__: log(f'getting XML for {eprintid} from server')
         try:
-            response = self._get(f'/eprint/{record_id}.xml')
+            response = self._get(f'/eprint/{eprintid}.xml')
         except Exception as ex:
             # Our EPrints server sometimes returns with access forbidden for
             # specific records.  Our caller may simply move on, so we store
             # a value before bubbling up the exception.
-            if __debug__: log(f'{str(ex)} for {record_id}')
-            self._records[record_id] = None
+            if __debug__: log(f'{str(ex)} for {eprintid}')
+            self._records[eprintid] = None
             raise ex
         if response is None:
-            self._records[record_id] = None
+            self._records[eprintid] = None
             return None
         xml = etree.fromstring(response.content)
-        self._records[record_id] = xml
+        self._records[eprintid] = xml
         return xml
 
 
-    def record_field(self, id_or_record, field):
+    def eprint_value(self, id_or_record, field):
         '''Return the value of 'field' of the record 'id_or_record'.  If
         'id_or_record' is a number (either as a string or an integer), this
         method will ask the server for the field value using the REST API;
         if 'id_or_record' is an XML object, then the value is looked up in the
         object itself.'''
 
-        if isinstance(id_or_record, str) or isinstance(id_or_record, int):
+        if isinstance(id_or_record, (str, int)):
             id_or_record = str(id_or_record)
             if id_or_record in self._records:
                 # We have a copy of the XML for this one.  Use it.
