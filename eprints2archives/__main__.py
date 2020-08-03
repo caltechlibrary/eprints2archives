@@ -79,14 +79,15 @@ URL after option -a, omit that part of the URL.
 Specifying which records to send
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The EPrints records to be written will be limited to the list of EPrints
-numbers found in the file given by the option -i (or /i on Windows). If no
--i option is given, this program will download all the contents available at
-the given EPrints server. The value of -i can also be one or more integers
-separated by commas (e.g., -i 54602,54604), or a range of numbers separated
-by a dash (e.g., -i 1-100, which is interpreted as the list of numbers 1, 2,
-..., 100 inclusive), or some combination thereof. In those cases, the
-records written will be limited to those numbered.
+The EPrints records to be sent to the web archiving services will be limited to
+the records indicated by the option -i (or /i on Windows). If no -i option is
+given, this program will use all the records available at the given EPrints
+server. The value of -i can be one or more integers separated by commas
+(e.g., -i 54602,54604), or a range of numbers separated by a dash (e.g.,
+-i 1-100, which is interpreted as the list of numbers 1, 2, ..., 100 inclusive),
+or some combination thereof. The value of the option -i can also be a file, in
+which case, the file is read to get a list of identifiers. Note that if you use
+the -i option, you may also want to use the -k option described below.
 
 If the -l option (or /l on Windows) is given, the records will be additionally
 filtered to return only those whose last-modified date/time stamp is no older
