@@ -14,10 +14,10 @@ from .timemap import timemap_as_dict
 # Constants.
 # .............................................................................
 
-_MAX_RETRIES = 3
-'''Maximum number of times we back off and try again.'''
+_MAX_RETRIES = 8
+'''Maximum number of times we retry before we give up.'''
 
-_RETRY_SLEEP_TIME = 60 * 60
+_RETRY_SLEEP_TIME = 60
 '''Time in seconds we pause if we get repeated errors.  This pause is on top
 of the maximum time reached after exponential back-off by our underlying
 network code, and is used to pause before the whole scheme is retried again.
@@ -79,6 +79,8 @@ class InternetArchive(Service):
 
     def _archive(self, url, retry = 0):
         if __debug__: log(f'asking {self.name} to save {url}')
+        if retry > 0:
+            if __debug__: log(f'this is retry #{retry}')
         payload = {'url': url, 'capture_all': 'on'}
         action_url = 'https://web.archive.org/save/' + self._uniform(url)
         (response, error) = net('post', action_url, data = payload)
@@ -93,10 +95,16 @@ class InternetArchive(Service):
             retry += 1
             retries_left = _MAX_RETRIES - retry
             if __debug__: log(f'we have {retries_left} retries left')
-            if retries_left > 0:
-                warn('Encountered repeated errors from {} -- pausing for {}s',
-                     self.name, intcomma(_RETRY_SLEEP_TIME))
-                sleep(_RETRY_SLEEP_TIME)
+            if retry == 1:
+                # Might have been a transient server-unavailable type of error.
+                if __debug__: log(f'retrying once without pause')
+                return self._archive(url, retry)
+            elif retries_left > 0:
+                # Subtract 1 b/c we try without pause once, before we land here.
+                if __debug__: log(f'pausing due to multiple retries')
+                sleeptime = _RETRY_SLEEP_TIME * pow(retry - 1, 2)
+                warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
+                sleep(sleeptime)
                 return self._archive(url, retry)
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')
