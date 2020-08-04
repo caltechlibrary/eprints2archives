@@ -179,19 +179,17 @@ class MainBody(Thread):
             wanted = available
 
         # The basic URLs for EPrint pages can be constructed without doing
-        # any record lookups because they follow a common pattern, and all
-        # you need is the eprint id number from the index.  However, some
-        # sites like Caltech use an additional field, <official_url>, that
-        # DOES require a database lookup.  Now, we can't know if a site
-        # uses official_url until we try it, and we can't be sure all records
-        # have a value (or don't), so we have to try to get official_url for
-        # all records.  If we're NOT filtering by any other data field, then
-        # it's faster to do direct lookups of <official_url>; conversely, if
-        # we have to use lastmod or status, it takes less time to just get
-        # the XML of every record rather than ask for 2 or more field values
+        # any record lookups -- all you need is id numbers from the index.
+        # Some sites like Caltech use an additional field, <official_url>,
+        # that DOES require a database lookup, but we can't know if a site
+        # uses official_url until we try it, and we can't be sure every
+        # record has a value, so we have to try to get official_url for all
+        # records.  If we're not filtering by lastmod or status, then it's
+        # faster to do direct lookups of <official_url>; conversely, if we
+        # need lastmod or status values, it takes less time to just get the
+        # XML of every record rather than ask for 2 or more field values
         # separately, because each such EPrint lookup is slow and doing 2 or
-        # more lookups per record is slower than doing one XML fetch (even if
-        # that one entails downloading more data per record).  Fun!
+        # more lookups per record is slower than doing one XML fetch.
 
         records = []
         if not self.lastmod and not self.status:
