@@ -201,23 +201,21 @@ class MainBody(Thread):
                 eprintid = server.eprint_value(r, 'eprintid')
                 if self.lastmod:
                     modtime = server.eprint_value(r, 'lastmod')
-                    if modtime and parse_datetime(modtime) >= self.lastmod:
-                        records.append(r)
-                    else:
+                    if modtime and parse_datetime(modtime) < self.lastmod:
                         if __debug__: log(f'{eprintid} lastmod == {modtime} -- skipping')
                         skipped.append(r)
-                    continue
+                        continue
                 if self.status:
                     status = server.eprint_value(r, 'eprint_status')
-                    if status and self._status_acceptable(status):
-                        records.append(r)
-                    else:
+                    if status and not self._status_acceptable(status):
                         if __debug__: log(f'{eprintid} status == {status} -- skipping')
                         skipped.append(r)
+                        continue
+                records.append(r)
             if len(skipped) > 0:
                 inform(f'Skipping {len(skipped)} records due to filtering.')
             if len(records) == 0:
-                alert('Filtering left 0 records -- nothing left to do')
+                warn('Filtering left 0 records -- nothing left to do')
                 return
             urls = [server.eprint_value(r, 'official_url') for r in records]
 
@@ -259,7 +257,7 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
             server_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Gathering standard URLs of EPrints on {server_name} ...'
+            header  = f'[green]Gathering EPrint URLs from {server_name} ...'
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
