@@ -74,20 +74,20 @@ class MainBody(Thread):
         if __debug__: log('running MainBody thread')
 
         try:
+            self._do_preflight()
             self._do_main_work()
             inform('Done.')
         except (KeyboardInterrupt, UserCancelled) as ex:
-            if __debug__: log(f'got {type(ex).__name__} exception')
+            if __debug__: log(f'got {type(ex).__name__}')
             inform('User cancelled operation -- stopping.')
         except CannotProceed as ex:
+            if __debug__: log(f'got CannotProceed')
             self.exception = (CannotProceed, ex)
-            return
         except Exception as ex:
             if __debug__: log(f'exception in main body: {str(ex)}')
             self.exception = sys.exc_info()
             alert_fatal(f'Error occurred during execution:', details = str(ex))
-            return
-        if __debug__: log('finished')
+        if __debug__: log('finished MainBody')
 
 
     def stop(self):
@@ -98,7 +98,7 @@ class MainBody(Thread):
 
 
     def _do_preflight(self):
-        '''Do error checks on the options given, and other prep work.'''
+        '''Check the option values given by the user, and do other prep.'''
 
         if not network_available():
             alert_fatal('No network connection.')
@@ -111,9 +111,6 @@ class MainBody(Thread):
             alert_fatal('The given API URL does not appear to be a valid URL')
             raise CannotProceed(ExitCode.bad_arg)
 
-        # The id's are stored as strings, not ints, to avoid repeated conversion
-        self.wanted_list = parsed_id_list(self.id_list)
-
         if self.lastmod:
             try:
                 self.lastmod = parse_datetime(self.lastmod)
@@ -124,10 +121,8 @@ class MainBody(Thread):
                 raise CannotProceed(ExitCode.bad_arg)
 
         # It's easier to use None as an indication of no restriction.
-        if self.status == 'any':
-            self.status = None
-        elif self.status:
-            self.status = self.status.split(',')
+        if self.status:
+            self.status = None if self.status == 'any' else self.status.split(',')
         self.status_negation = (self.status and self.status[0].startswith('^'))
         if self.status_negation:        # Remove the '^' if it's there.
             self.status[0] = self.status[0][1:]
@@ -150,6 +145,9 @@ class MainBody(Thread):
         if cancel:
             raise UserCancelled
 
+        # The id's are stored as strings, not ints, to avoid repeated conversion
+        self.wanted_list = parsed_id_list(self.id_list)
+
         if self.report_file:
             if writable(self.report_file):
                 inform(f'A report will be written to "{self.report_file}"')
@@ -160,8 +158,6 @@ class MainBody(Thread):
 
     def _do_main_work(self):
         '''Performs the core work of this program.'''
-
-        self._do_preflight()
 
         server = EPrintServer(self.api_url, self.user, self.password)
 
