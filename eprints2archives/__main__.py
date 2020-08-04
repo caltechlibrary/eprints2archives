@@ -266,11 +266,9 @@ Command-line options summary
             if __debug__: log(f'Exception: {ex_type}\n{details}')
             if debugging:
                 import pdb; pdb.set_trace()
-            if ui:
-                ui.stop()
             if manager:
                 manager.stop()
-    if __debug__: log('exiting')
+    if __debug__: log('_'*8 + f' stopped {dt.now().strftime(DATE_FORMAT)}' + '_'*8)
     exit(exit_code.value[0])
 
 
