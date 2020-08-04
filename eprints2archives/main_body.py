@@ -18,6 +18,7 @@ from   concurrent.futures import ThreadPoolExecutor
 from   humanize import intcomma
 from   itertools import repeat
 from   pydash import flatten
+import re
 from   rich.progress import Progress, BarColumn, TextColumn
 import sys
 from   threading import Thread
@@ -120,12 +121,9 @@ class MainBody(Thread):
                 alert_fatal(f'Unable to parse lastmod value: {str(ex)}')
                 raise CannotProceed(ExitCode.bad_arg)
 
-        # It's easier to use None as an indication of no restriction.
+        # It's easier to use None as an indication of no restriction (= 'any').
         if self.status:
-            self.status = None if self.status == 'any' else self.status.split(',')
-        self.status_negation = (self.status and self.status[0].startswith('^'))
-        if self.status_negation:        # Remove the '^' if it's there.
-            self.status[0] = self.status[0][1:]
+            self.status = None if self.status == 'any' else re.split('(\W)', self.status)
 
         if self.dest == 'all':
             self.dest = service_interfaces()
@@ -249,7 +247,7 @@ class MainBody(Thread):
         def loop(item_list, update_progress):
             urls = []
             for r in item_list:
-                if __debug__: log(f'building & checking URLs for {r}')
+                if __debug__: log(f'getting URLs for {server.eprint_value(r, "eprintid")}')
                 urls.append(server.eprint_id_url(r))
                 urls.append(server.eprint_page_url(r))
                 update_progress()
@@ -368,9 +366,10 @@ class MainBody(Thread):
                     results = [f.result() for f in futures]
 
 
-    def _status_acceptable(self, status):
-        return ((not self.status_negation and status in self.status)
-                or (self.status_negation and status not in self.status))
+    def _status_acceptable(self, this_status):
+        # The presence of '^' indicates negation, i.e., "not any of these".
+        return ((not '^' in self.status and this_status in self.status)
+                or ('^' in self.status and this_status not in self.status))
 
 
 # Helper functions.
