@@ -199,18 +199,17 @@ class MainBody(Thread):
             skipped = []
             for r in self._eprints(server.eprint_xml, wanted, server, 'XML records'):
                 eprintid = server.eprint_value(r, 'eprintid')
-                if self.lastmod:
-                    modtime = server.eprint_value(r, 'lastmod')
-                    if modtime and parse_datetime(modtime) < self.lastmod:
-                        if __debug__: log(f'{eprintid} lastmod == {modtime} -- skipping')
-                        skipped.append(r)
-                        continue
-                if self.status:
-                    status = server.eprint_value(r, 'eprint_status')
-                    if status and not self._status_acceptable(status):
-                        if __debug__: log(f'{eprintid} status == {status} -- skipping')
-                        skipped.append(r)
-                        continue
+                modtime  = server.eprint_value(r, 'lastmod')
+                status   = server.eprint_value(r, 'eprint_status')
+                if self.lastmod and modtime and parse_datetime(modtime) < self.lastmod:
+                    if __debug__: log(f'{eprintid} lastmod == {modtime} -- skipping')
+                    skipped.append(r)
+                    continue
+                if self.status and status and not self._status_acceptable(status):
+                    if __debug__: log(f'{eprintid} status == {status} -- skipping')
+                    skipped.append(r)
+                    continue
+                if __debug__: log(f'{eprintid} passed filter checks')
                 records.append(r)
             if len(skipped) > 0:
                 inform(f'Skipping {len(skipped)} records due to filtering.')
