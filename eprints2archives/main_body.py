@@ -150,6 +150,9 @@ class MainBody(Thread):
         if cancel:
             raise UserCancelled
 
+        if self.report_file:
+            inform(f'A report of the results will be written to "{self.report_file}"')
+
 
     def _do_main_work(self):
         '''Performs the core work of this program.'''
@@ -177,20 +180,25 @@ class MainBody(Thread):
         else:
             wanted = available
 
-        # We switch strategies for getting official_url depending on filters.
-        # If we're not filtering by lastmod or status, then we don't need to
-        # get more than the official_url field for each record.  We can ask the
-        # server for that directly, and that saves bandwidth and is a little
-        # faster.  Conversely, if we need to filter by any value, it takes
-        # less time to get the XML of every record rather than ask for 2 or
-        # more field values separately, because each such EPrint fetch is slow
-        # and doing 2 or more lookups per record is slower than doing one
-        # lookup (even if that one entails downloading more data per record).
+        # The basic URLs for EPrint pages can be constructed without doing
+        # any record lookups because they follow a common pattern, and all
+        # you need is the eprint id number from the index.  However, some
+        # sites like Caltech use an additional field, <official_url>, that
+        # DOES require a database lookup.  Now, we can't know if a site
+        # uses official_url until we try it, and we can't be sure all records
+        # have a value (or don't), so we have to try to get official_url for
+        # all records.  If we're NOT filtering by any other data field, then
+        # it's faster to do direct lookups of <official_url>; conversely, if
+        # we have to use lastmod or status, it takes less time to just get
+        # the XML of every record rather than ask for 2 or more field values
+        # separately, because each such EPrint lookup is slow and doing 2 or
+        # more lookups per record is slower than doing one XML fetch (even if
+        # that one entails downloading more data per record).  Fun!
 
         records = []
         if not self.lastmod and not self.status:
             official_url = lambda r: server.eprint_value(r, 'official_url')
-            urls = self._eprints(official_url, wanted, server, "official_url values")
+            urls = self._eprints(official_url, wanted, server, "<official_url> values")
         else:
             skipped = []
             for r in self._eprints(server.eprint_xml, wanted, server, 'XML records'):
@@ -212,25 +220,66 @@ class MainBody(Thread):
                         skipped.append(r)
             if len(skipped) > 0:
                 inform(f'Skipping {len(skipped)} records due to filtering.')
+            if len(records) == 0:
+                alert('Filtering left 0 records -- nothing left to do')
+                return
             urls = [server.eprint_value(r, 'official_url') for r in records]
 
-        # Get the normal URLs
-        inform('Constructing list of valid EPrint URLs ...')
-        urls += [server.eprint_id_url(r) for r in (wanted or records)]
-        urls += [server.eprint_page_url(r) for r in (wanted or records)]
-        urls = list(filter(None, urls))
+        # Next, construct "standard" URLs and check that they exist.  Do this
+        # AFTER the steps above, because if we did any filtering, we may have
+        # a much shorter list of records now than what we started with.
 
-        num_urls = len(urls)
-        if num_urls == 0:
-            warn('List of URLs is empty -- nothing to archive')
+        urls += self._standard_urls(server, records or wanted)
+
+        # Clean up any None's and make sure we have something left to do.
+        urls = list(filter(None, urls))
+        if not urls:
+            alert('List of URLs is empty -- nothing to archive')
             return
 
-        inform(f'Sending {intcomma(num_urls)} {plural("URL", urls)}'
-               + f' to {len(self.dest)} {plural("archiving service", self.dest)}.')
-        if self.report_file:
-            inform(f'A report of the results will be written to "{self.report_file}"')
-
+        # If we get this far, we're doing it.
+        inform(f'We have a total of {intcomma(len(urls))} {plural("URL", urls)}'
+               + f' to send to {len(self.dest)} {plural("archive", self.dest)}.')
         self._send(urls)
+
+
+    def _standard_urls(self, server, records_list):
+
+        # Helper function: body of loop that is executed in all cases.
+        def loop(item_list, update_progress):
+            urls = []
+            for r in item_list:
+                if __debug__: log(f'building & checking URLs for {r}')
+                urls.append(server.eprint_id_url(r))
+                urls.append(server.eprint_page_url(r))
+                update_progress()
+            return urls
+
+        # Start of actual procedure.
+        num_items = len(records_list)
+        with Progress('[progress.description]{task.description}',
+                      BarColumn(bar_width = None),
+                      TextColumn('{task.completed}/' + intcomma(num_items)),
+                      refresh_per_second = 5) as progress:
+            # Wrap up the progress bar updater as a lambda that we can pass down.
+            server_name = f'[spring_green1]{server}[/spring_green1]'
+            header  = f'[green]Gathering standard URLs of EPrints on {server_name} ...'
+            bar = progress.add_task(header, total = num_items)
+            update_progress = lambda: progress.update(bar, advance = 1)
+
+            # If the number of items is too small, don't bother going parallel.
+            if self.threads == 1 or num_items <= (self.threads * _PARALLEL_THRESHOLD):
+                return loop(records_list, update_progress)
+
+            num_threads = min(num_items, self.threads)
+            if __debug__: log(f'using {num_threads} threads to gather records')
+            with ThreadPoolExecutor(max_workers = num_threads) as e:
+                # Don't use TPE map() b/c it doesn't bubble up exceptions.
+                futures = []
+                for sublist in slice(records_list, num_threads):
+                    futures.append(e.submit(loop, sublist, update_progress))
+                # We get a list of lists, so flatten it before returning.
+                return flatten(f.result() for f in futures)
 
 
     def _eprints(self, value_function, items, server, description):
@@ -238,7 +287,7 @@ class MainBody(Thread):
         # Helper function: body of loop that is executed in all cases.
         def loop(item_list, update_progress):
             results = []
-            for index, item in enumerate(item_list):
+            for item in item_list:
                 if __debug__: log(f'getting data for {item}')
                 try:
                     data = value_function(item)
@@ -264,8 +313,8 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
             server_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Getting {description} from {server_name} ...'
-            bar = progress.add_task(header, done = 0, total = num_items)
+            header  = f'[green]Asking for {description} from {server_name} ...'
+            bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
             # If the number of items is too small, don't bother going parallel.
@@ -296,7 +345,7 @@ class MainBody(Thread):
                 header  = f'[green]Sending URLs to [{dest.color}]{dest.name}[/{dest.color}] ...'
                 added = skipped = 0
                 bar = pbar.add_task(header, total = num_urls, added = 0, skipped = 0)
-                for index, url in enumerate(urls_to_send):
+                for url in urls_to_send:
                     if __debug__: log(f'next for {dest}: {url}')
                     (result, num_existing) = dest.save(url, self.force)
                     if __debug__: log(f'result = {result}')
