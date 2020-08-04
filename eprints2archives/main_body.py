@@ -151,7 +151,11 @@ class MainBody(Thread):
             raise UserCancelled
 
         if self.report_file:
-            inform(f'A report of the results will be written to "{self.report_file}"')
+            if writable(self.report_file):
+                inform(f'A report will be written to "{self.report_file}"')
+            else:
+                alert_fatal(f'Cannot write to file "{self.report_file}"')
+                raise CannotProceed(ExitCode.exception)
 
 
     def _do_main_work(self):
