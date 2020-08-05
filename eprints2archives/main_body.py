@@ -31,7 +31,7 @@ from .debug import log
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
-from .network import network_available, hostname
+from .network import network_available, hostname, netloc
 from .services import service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
 from .styled import styled
@@ -138,8 +138,8 @@ class MainBody(Thread):
                     raise CannotProceed(ExitCode.bad_arg)
             self.dest = destination_list
 
-        text = 'Login for EPrints server at ' + hostname(self.api_url)
-        self.user, self.password, cancel = self.auth_handler.name_and_password(text)
+        server = netloc(self.api_url)
+        self.user, self.password, cancel = self.auth_handler.credentials(server)
         if cancel:
             raise UserCancelled
 
