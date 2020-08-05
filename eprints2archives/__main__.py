@@ -229,7 +229,8 @@ Command-line options summary
     try:
         ui = UI('eprints2archives', 'send EPrints records to web archives',
                 use_gui = not no_gui, use_color = not no_color, be_quiet = quiet)
-        auth = AuthHandler(user = None if user == 'U' else user,
+        auth = AuthHandler(prompter = ui.login_details,
+                           user = None if user == 'U' else user,
                            pswd = None if password == 'P' else password,
                            use_keyring = not no_keyring)
         body = MainBody(api_url = None if api_url == 'A' else api_url,
