@@ -216,10 +216,13 @@ class EPrintServer():
                 if __debug__: log(f'{id_or_record} not cached -- asking server')
                 field_url = f'/eprint/{id_or_record}/{field}.txt'
                 response = self._get(field_url)
-                return response.text if response else ''
+                if __debug__: log(f'got response: {response.text}')
+                return response.text if response and response.text != '' else None
         else:
             xml = id_or_record
-        return self._xml_field_value(xml, field)
+        value = self._xml_field_value(xml, field)
+        if __debug__: log(f'obtained value: {value}')
+        return value
 
 
     # Internal methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
