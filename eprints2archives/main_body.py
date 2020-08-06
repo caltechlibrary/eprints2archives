@@ -26,11 +26,13 @@ import time
 from   timeit import default_timer as timer
 import validators.url
 
-from .data_helpers import DATE_FORMAT, slice, expand_range, parse_datetime, plural
+from .data_helpers import DATE_FORMAT, slice, expand_range, plural
+from .data_helpers import timestamp, parse_datetime
 from .debug import log
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
+from .files import writable
 from .network import network_available, hostname, netloc
 from .services import service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
@@ -149,6 +151,7 @@ class MainBody(Thread):
         if self.report_file:
             if writable(self.report_file):
                 inform(f'A report will be written to "{self.report_file}"')
+                self._report(f'eprints2archives starting {timestamp()}.', True)
             else:
                 alert_fatal(f'Cannot write to file "{self.report_file}"')
                 raise CannotProceed(ExitCode.exception)
@@ -163,6 +166,7 @@ class MainBody(Thread):
         available = server.index()
         if not available:
             raise NoContent(f'Received empty list from {server}.')
+        self._report(f'EPrints server at {self.api_url} has {len(available)} records.')
 
         # If the user wants specific records, check which ones actually exist.
         if self.wanted_list:
@@ -175,6 +179,7 @@ class MainBody(Thread):
                      + " don't exist and will be skipped: "
                      + ', '.join(str(x) for x in sorted(nonexistent, key = int)) + '.')
             wanted = sorted(list(set(self.wanted_list) - set(nonexistent)), key = int)
+            self._report(f'User-supplied list of identifiers has {len(wanted)} items in it.')
         else:
             wanted = available
 
@@ -213,6 +218,7 @@ class MainBody(Thread):
                 records.append(r)
             if len(skipped) > 0:
                 inform(f'Skipping {len(skipped)} records due to filtering.')
+                self._report(f'Skipping {len(skipped)} records due to filtering.')
             if len(records) == 0:
                 warn('Filtering left 0 records -- nothing left to do')
                 return
@@ -327,8 +333,11 @@ class MainBody(Thread):
 
     def _send(self, urls_to_send):
         num_urls = len(urls_to_send)
+        num_dest = len(self.dest)
+        self._report(f'{num_urls} URLs to be sent to {num_dest} {plural("service", num_dest)}.')
         if self.force:
             inform('Force option given ⟹  adding URLs even if archives have copies.')
+
         with Progress('[progress.description]{task.description}',
                       BarColumn(bar_width = None),
                       TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped'),
@@ -336,15 +345,17 @@ class MainBody(Thread):
 
             def send_to_service(dest, pbar):
                 header  = f'[green]Sending URLs to [{dest.color}]{dest.name}[/{dest.color}] ...'
-                added = skipped = 0
+                added_count = skipped_count = 0
                 bar = pbar.add_task(header, total = num_urls, added = 0, skipped = 0)
                 for url in urls_to_send:
                     if __debug__: log(f'next for {dest}: {url}')
-                    (result, num_existing) = dest.save(url, self.force)
-                    if __debug__: log(f'result = {result}')
-                    added += int(result is True)
-                    skipped += int(result is False)
-                    pbar.update(bar, advance = 1, added = added, skipped = skipped)
+                    (added, num_existing) = dest.save(url, self.force)
+                    added_str = "added" if added else "skipped"
+                    if __debug__: log(f'{dest}: {url} {added_str}')
+                    added_count += int(added)
+                    skipped_count += int(not added)
+                    pbar.update(bar, advance = 1, added = added_count, skipped = skipped_count)
+                    self._report(f'{url} ➜ {dest.name}: {added_str}')
 
             if __debug__: log(f'starting {self.threads} threads')
             if self.threads == 1:
@@ -352,7 +363,7 @@ class MainBody(Thread):
                 results = [send_to_service(d, progress) for d in self.dest]
             else:
                 # Send the list of wanted articles to each service in parallel.
-                num_threads = min(len(self.dest), self.threads)
+                num_threads = min(num_dest, self.threads)
                 with ThreadPoolExecutor(max_workers = num_threads) as e:
                     # Don't use TPE map() b/c it doesn't bubble up exceptions.
                     futures = []
@@ -360,11 +371,21 @@ class MainBody(Thread):
                         futures.append(e.submit(send_to_service, service, progress))
                     results = [f.result() for f in futures]
 
+        self._report(f'Completed sending {num_urls} URLs.')
+
 
     def _status_acceptable(self, this_status):
         # The presence of '^' indicates negation, i.e., "not any of these".
         return ((not '^' in self.status and this_status in self.status)
                 or ('^' in self.status and this_status not in self.status))
+
+
+    def _report(self, text, overwrite = False):
+        # Opening/closing the file for every write is inefficient, but our
+        # network operations are slow, so I think this is not going to have
+        # enough impact to be concerned
+        with open(self.report_file, 'w' if overwrite else 'a') as f:
+            f.write(text + os.linesep)
 
 
 # Helper functions.
