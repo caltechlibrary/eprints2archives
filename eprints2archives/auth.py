@@ -72,18 +72,6 @@ class AuthHandler():
         self._use_keyring = use_keyring
 
 
-    @property
-    def user(self):
-        '''Returns the last-provided user name.'''
-        return self._user
-
-
-    @property
-    def pswd(self):
-        '''Returns the last-provided password.'''
-        return self._pswd
-
-
     # Explanation about the weird way this is done: the Python keyring module
     # only offers a single function for setting a value; ostensibly, this is
     # intended to store a password associated with an identifier (a user name),
