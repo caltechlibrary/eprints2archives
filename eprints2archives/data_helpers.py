@@ -4,6 +4,8 @@ data_helpers: data manipulation utilities
 
 import dateparser
 import datetime
+from   datetime import datetime as dt
+from   tzlocal import get_localzone
 
 
 # Constants.
@@ -41,6 +43,11 @@ def expand_range(text):
         return [*map(str, range(int(range_list[0]), int(range_list[1]) + 1))]
     else:
         return text
+
+
+def timestamp():
+    '''Return a string describing the date and time right now.'''
+    return dt.now(get_localzone()).strftime(DATE_FORMAT)
 
 
 def parse_datetime(string):
