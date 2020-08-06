@@ -14,7 +14,6 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-from   datetime import datetime as dt
 import os
 from   os import path, cpu_count
 import plac
@@ -23,7 +22,7 @@ import sys
 import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
-from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime
+from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime, timestamp
 from   .debug import set_debug, log
 from   .exceptions import *
 from   .exit_codes import ExitCode
@@ -224,7 +223,7 @@ Command-line options summary
 
     # Do the real work --------------------------------------------------------
 
-    if __debug__: log('='*8 + f' started {dt.now().strftime(DATE_FORMAT)}' + '='*8)
+    if __debug__: log('='*8 + f' started {timestamp()} ' + '='*8)
     ui = manager = exception = None
     try:
         ui = UI('eprints2archives', 'send EPrints records to web archives',
@@ -269,7 +268,7 @@ Command-line options summary
                 import pdb; pdb.set_trace()
             if manager:
                 manager.stop()
-    if __debug__: log('_'*8 + f' stopped {dt.now().strftime(DATE_FORMAT)}' + '_'*8)
+    if __debug__: log('_'*8 + f' stopped {timestamp()} ' + '_'*8)
     exit(exit_code.value[0])
 
 
