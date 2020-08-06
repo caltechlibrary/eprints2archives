@@ -256,7 +256,7 @@ Command-line options summary
         if type(exception[1]) == CannotProceed:
             exit_code = exception[1].args[0]
         elif type(exception[1]) in [KeyboardInterrupt, UserCancelled]:
-            if __debug__: log('received {exception[1].__class__.__name__}')
+            if __debug__: log(f'received {exception[1].__class__.__name__}')
             exit_code = ExitCode.user_interrupt
         else:
             exit_code = ExitCode.exception
