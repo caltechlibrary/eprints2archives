@@ -16,11 +16,9 @@ file "LICENSE" for more information.
 
 from .internetarchive import InternetArchive
 from .archivetoday import ArchiveToday
-from .archivest import ArchiveST
 
 KNOWN_SERVICES = {
     'internetarchive' : InternetArchive(),
-    'archive.st'      : ArchiveST(),
     'archive.today'   : ArchiveToday(),
 }
 
@@ -29,7 +27,7 @@ SERVICE_NAMES = sorted(KNOWN_SERVICES.keys())
 SERVICE_OBJECTS = KNOWN_SERVICES.values()
 
 def service_names():
-    return SERVICES_NAMES
+    return SERVICE_NAMES
 
 def service_interfaces():
     return SERVICE_OBJECTS
