@@ -162,7 +162,7 @@ class MainBody(Thread):
 
         server = EPrintServer(self.api_url, self.user, self.password)
 
-        inform('Getting EPrints index from {} ...', styled(server, ['SpringGreen']))
+        inform('Getting full EPrints index from {} ...', styled(server, ['SpringGreen']))
         available = server.index()
         if not available:
             raise NoContent(f'Received empty list from {server}.')
@@ -199,10 +199,10 @@ class MainBody(Thread):
         records = []
         if not self.lastmod and not self.status:
             official_url = lambda r: server.eprint_value(r, 'official_url')
-            urls = self._eprints(official_url, wanted, server, "<official_url> values")
+            urls = self._eprints(official_url, wanted, server, "<official_url>'s")
         else:
             skipped = []
-            for r in self._eprints(server.eprint_xml, wanted, server, 'XML records'):
+            for r in self._eprints(server.eprint_xml, wanted, server, "record materials"):
                 eprintid = server.eprint_value(r, 'eprintid')
                 modtime  = server.eprint_value(r, 'lastmod')
                 status   = server.eprint_value(r, 'eprint_status')
@@ -262,7 +262,7 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
             server_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Gathering EPrint URLs from {server_name} ...'
+            header  = f'[green]Checking variant record URLs on {server_name} ...'
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
@@ -312,7 +312,7 @@ class MainBody(Thread):
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
             server_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Asking for {description} from {server_name} ...'
+            header  = f'[green]Gathering {description} from {server_name} ...'
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
