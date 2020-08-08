@@ -180,6 +180,12 @@ to speed up the initial data gathering step from the EPrints server.
 To save a report of the articles sent to archiving services, you can use the
 option -r (/r on Windows) followed by a file name.
 
+Note that there is a lag between when web archives such as Internet Archive
+receive a URL submission and when a saved copy is made available from the
+archive.  (In the case of Internet Archive, it is 3-10 hours.)  If you cannot
+find a given EPrints page in an archive shortly after running eprints2archives,
+it may be because not enough time has passed -- try again later.
+
 Return values
 ~~~~~~~~~~~~~
 
