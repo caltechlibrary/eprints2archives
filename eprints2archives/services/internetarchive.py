@@ -110,3 +110,4 @@ class InternetArchive(Service):
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')
                 raise error
+        return False
