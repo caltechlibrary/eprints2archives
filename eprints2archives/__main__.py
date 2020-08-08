@@ -53,10 +53,10 @@ disable_ssl_cert_check()
     report     = ('save a report of what was saved to file "R"',            'option', 'r'),
     status     = ('only get records whose status is in the list "S"',       'option', 's'),
     threads    = ('number of threads to use (default: #cores/2)',           'option', 't'),
-    services   = ('print list of known services and exit',                  'flag',   'v'),
     no_color   = ('do not color-code terminal output',                      'flag',   'C'),
     no_gui     = ('do not start the GUI interface (default: do)',           'flag',   'G'),
     no_keyring = ('do not store credentials in a keyring service',          'flag',   'K'),
+    services   = ('print list of known archiving services and exit',        'flag',   'S'),
     version    = ('print version info and exit',                            'flag',   'V'),
     debug      = ('write detailed trace to "OUT" ("-" means console)',      'option', '@'),
 )
@@ -64,15 +64,41 @@ disable_ssl_cert_check()
 def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
          keep_going = False, lastmod = 'L', quiet = False, user = 'U',
          password = 'P', report = 'R', status = 'S', threads = 'T',
-         services = False, no_gui = False, no_color = False, no_keyring = False,
-         version = False, debug = 'OUT'):
+         no_gui = False, no_color = False, no_keyring = False,
+         services = False, version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
+
+One way to improve preservation and distribution of EPrints server content is
+to ask web archiving sites such as the Internet Archive to store copies of the
+public EPrints web pages.  Eprints2archives is a self-contained program for
+doing just that.  It contacts a given EPrints server, obtains the list of
+documents it serves (optionally modified based on selectors such as date),
+determines the URLs for the document pages on the EPrints server, and sends
+the URLs to archiving sites.
+
+Specifying which EPrints server to contact
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This program contacts an EPrints REST server whose network API is accessible
 at the URL given by the command-line option -a (or /a on Windows). A typical
 EPrints server URL has the form "https://server.institution.edu/rest". This
 program will automatically add "/eprint" to the URL path, so when writing the
-URL after option -a, omit that part of the URL.
+URL after option -a, omit the trailing "/eprint" part of the URL.
+
+Accessing some EPrints servers via the API requires supplying a user login and
+password to the server. By default, this program uses the operating system's
+keyring/keychain functionality to get a user name and password. If the
+information does not exist from a previous run of eprints2archives, it will
+ask the user interactively for the user name and password, and (unless the -K
+or /K argument is given) store them in the user's keyring/keychain so that it
+does not have to ask again in the future. It is also possible to supply the
+information directly on the command line using the -u and -p options (or /u
+and /p on Windows), but this is discouraged because it is insecure on
+multiuser computer systems. (However, if you need to reset the user name and/or
+password for some reason, use -u with a user name and let it prompt for a
+password again.)  If a given EPrints server does not require a user name and
+password, do not use -u or -p and supply blank values when prompted for them
+by eprints2archives. (Empty user name and password are allowed values.)
 
 Specifying which records to send
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -124,46 +150,32 @@ from the server, which is unlike the user providing a list of record numbers
 that may or may not exist on the server. However, even without -i, errors may
 still result from permissions errors or other causes.)
 
-Providing EPrints server credentials
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Accessing some EPrints servers via the API requires supplying a user login and
-password to the server. By default, this program uses the operating system's
-keyring/keychain functionality to get a user name and password. If the
-information does not exist from a previous run of eprints2archives, it will
-query the user interactively for the user name and password, and (unless the -K
-or /K argument is given) store them in the user's keyring/keychain so that it
-does not have to ask again in the future. It is also possible to supply the
-information directly on the command line using the -u and -p options (or /u
-and /p on Windows), but this is discouraged because it is insecure on
-multiuser computer systems. (However, if you need to reset the user name and/or
-password for some reason, use -u with a user name and let it prompt for a
-password again.)  If a given EPrints server does not require a user name and
-password, do not use -u or -p and supply blank values when prompted for them
-by eprints2archives. (Empty user name and password are allowed values.)
-
 Specifying where to send records
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Eprints2archives has a set of built-in adapters to interact with a number of
-known public web archives. To learn which services eprints2archives knows
-about, use the option -v (or /v on Windows). By default, the program will
+known public web archiving services. To learn which services eprints2archives
+knows about, use the option -S (or /S on Windows). By default, the program will
 send EPrints record URLs to all the known services. The option -d (or /d on
-Windows) can be used to select one or a list of services instead. Lists of
-services should be separated by commas; e.g., "internetarchive,archive.today".
-
-Eprints2archives will contact the EPrints server serially, but it will use
-parallel process threads to send records to archiving services, with one
-thread per service. By default the maximum number of threads used is equal
-to 1/2 of the number of cores on the computer it is running on. The option
--t (or /t on Windows) can be used to change this number.
+Windows) can be used to select one or a list of destination services instead.
+Lists of services should be separated by commas with no spaces between them;
+e.g., "internetarchive,archive.today".
 
 By default, eprints2archives will only ask a service to archive a copy of an
 EPrints record if the service does not already have an archived copy.  This
 makes sense because EPrints records usually change infrequently, and there's
-little point in repeatedly asking web archives to store new copies.  However,
+little point in repeatedly asking web archives to make new archives.  However,
 if you have reason to want the web archives to re-archive EPrints records, you
 can use the option -f (or /f on Windows).
+
+Eprints2archives will use parallel process threads to query the EPrints server
+as well as to send records to archiving services.  By default, the maximum
+number of threads used is equal to 1/2 of the number of cores on the computer
+it is running on. The option -t (or /t on Windows) can be used to change this
+number.  Eprints2archives will always use only one thread per web archiving
+service (and since there are only a few services, only a few threads are usable
+during that phase of operation), but a high number of threads can be helpful
+to speed up the initial data gathering step from the EPrints server.
 
 To save a report of the articles sent to archiving services, you can use the
 option -r (/r on Windows) followed by a file name.
