@@ -19,7 +19,7 @@ from .archivetoday import ArchiveToday
 
 KNOWN_SERVICES = {
     'internetarchive' : InternetArchive(),
-    'archive.today'   : ArchiveToday(),
+    'archivetoday'    : ArchiveToday(),
 }
 
 # Save this list to avoid recreating it all the time.
