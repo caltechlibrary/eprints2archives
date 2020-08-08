@@ -1,6 +1,9 @@
+from   collections import OrderedDict
 from   humanize import intcomma
 import requests
 from   time import sleep
+import urllib
+from   urllib.parse import quote_plus, urlencode
 
 from ..debug import log
 from ..exceptions import *
@@ -88,14 +91,14 @@ class ArchiveToday(Service):
         archive_host = None
         response = None
         for host in _HOSTS:
-            headers['host'] = host
+            # headers['host'] = host
             test_url = f'https://{host}/'
             (response, error) = net('get', test_url, session = session, headers = headers)
             if not error:
                 archive_host = host
                 break
         if not archive_host:
-            return (False, 0)
+            return False
 
         try:
             html = str(response.content)
@@ -104,26 +107,28 @@ class ArchiveToday(Service):
         except:
             raise InternalError('Unable to parse Archive.Today page')
 
-        action_url = f'https://{archive_host}/submit'
+        action_url = f'https://{archive_host}/submit/'
         headers['host'] = archive_host
-        payload = {'url': url, 'submitid': sid},
+        # The order of the content of the post body matters to archive.today.
+        # When wrong you get the error "invalid url: submitid". Use OrderedDict.
+        payload = OrderedDict({'submitid': sid, 'url': url})
         (response, error) = net('post', action_url, session = session,
                                 headers = headers, data = payload)
 
         if 'Refresh' in response.headers:
             try:
-                saved_url = str(r.headers['Refresh']).split(';url=')[1]
-                return (True, 0)
+                saved_url = str(response.headers['Refresh']).split(';url=')[1]
+                return True
             except:
                 raise InternalError('Unexpected format of response header from Archive.Today')
-        #elif 'Location' in response.headers:
-        else:
-            history = response.history
-            loc = history[0].headers['Location']
+        elif 'Location' in response.headers:
+            saved_url = response.headers['Location']
             import pdb; pdb.set_trace()
-            # Fixme: doesn't work
-            if '?q=submitid' in loc:
-                headers['host'] = hostname(loc)
-                new_action = loc.split('=')[0] + '=' + sid
-                (response, error) = net('post', new_action, session = session,
-                                        headers = headers)
+        else:
+            for h in response.history:
+                if 'Location' in h.headers:
+                    saved_url = h.headers['Location']
+                    import pdb; pdb.set_trace()
+
+        import pdb; pdb.set_trace()
+        raise InternalError('Archive.Today returned unexpected response')
