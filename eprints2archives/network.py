@@ -110,6 +110,10 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 if __debug__: log(f'response received: {response}')
                 return response
         except Exception as ex:
+            if ex.args and len(ex.args) > 0:
+                if isinstance(ex.args[0], urllib3.exceptions.MaxRetryError):
+                    # No point in retrying if we get this.
+                    raise ex
             # Problem might be transient.  Don't quit right away.
             failures += 1
             if __debug__: log(f'exception (failure #{failures}): {str(ex)}')
