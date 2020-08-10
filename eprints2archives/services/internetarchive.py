@@ -25,6 +25,7 @@ from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict
+from .upload_status import Status
 
 
 # Constants.
@@ -52,11 +53,11 @@ class InternetArchive(Service):
 
     # Public methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def save(self, url, force = False):
+    def save(self, url, notify, force = False):
         '''Ask the service to save "url".'''
         if force:
             # If we're forcing a send, we don't care how many there exist.
-            added = self._archive(url)
+            added = self._archive(url, notify)
             return (added, -1)
 
         existing = self._saved_copies(url)
@@ -69,7 +70,7 @@ class InternetArchive(Service):
                 raise InternalError('unexpected TimeMap format from IA')
         else:
             if __debug__: log(f'IA returned no mementos for {url}')
-            added = self._archive(url)
+            added = self._archive(url, notify)
             return (added, 0)
 
 
@@ -94,7 +95,7 @@ class InternetArchive(Service):
             raise error
 
 
-    def _archive(self, url, retry = 0):
+    def _archive(self, url, notify, retry = 0):
         if __debug__: log(f'asking {self.name} to save {url}')
         if retry > 0:
             if __debug__: log(f'this is retry #{retry}')
@@ -121,7 +122,9 @@ class InternetArchive(Service):
                 if __debug__: log(f'pausing due to multiple retries')
                 sleeptime = _RETRY_SLEEP_TIME * pow(retry - 1, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
+                notify(Status.PAUSED_ERROR)
                 sleep(sleeptime)
+                notify(Status.RUNNING)
                 return self._archive(url, retry)
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')

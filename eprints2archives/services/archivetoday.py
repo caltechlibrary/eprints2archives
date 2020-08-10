@@ -41,6 +41,7 @@ from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict
+from .upload_status import Status
 
 
 # Constants.
@@ -120,11 +121,11 @@ class ArchiveToday(Service):
 
     # Public methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def save(self, url, force = False):
+    def save(self, url, notify, force = False):
         '''Ask the service to save "url".'''
         if force:
-            # If we're forcing a send, we don't care how many there exist.
-            added = self._archive(url)
+            # If we're forcing a send, we don't care how many copies exist.
+            added = self._archive(url, notify)
             return (added, -1)
 
         existing = self._saved_copies(url)
@@ -134,10 +135,10 @@ class ArchiveToday(Service):
                 if __debug__: log(f'there are {num_existing} mementos for {url}')
                 return (False, num_existing)
             else:
-                raise InternalError(f'unexpected TimeMap format from {self.name}')
+                raise InternalError(f'Unexpected TimeMap format from {self.name}')
         else:
             if __debug__: log(f'{self.name} returned no mementos for {url}')
-            added = self._archive(url)
+            added = self._archive(url, notify)
             return (added, 0)
 
 
@@ -163,7 +164,7 @@ class ArchiveToday(Service):
             raise error
 
 
-    def _archive(self, url, retry = 0):
+    def _archive(self, url, notify, retry = 0):
 
         # Basic idea and algorithm taken from ArchiveNow.  We iterate over the
         # various domain names that Archive.today uses, because some of them
@@ -226,8 +227,10 @@ class ArchiveToday(Service):
             # https://blog.archive.today/post/625519838592417792
             if response.status_code == 503:
                 if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
+                notify(Status.PAUSED_RATE)
                 sleep(_RATE_LIMIT_SLEEP)
-                return self._archive(url)
+                notify(Status.RUNNING)
+                return self._archive(url, notify)
 
             # Our underlying net(...) function will retry automatically for
             # some recognizable temporary problems.  Others, we handle here.
@@ -238,8 +241,10 @@ class ArchiveToday(Service):
             if retries_left > 0:
                 sleeptime = _RETRY_SLEEP * pow(retry, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
+                notify(Status.PAUSED_ERROR)
                 sleep(sleeptime)
-                return self._archive(url, retry)
+                notify(Status.RUNNING)
+                return self._archive(url, notify, retry)
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')
                 raise error
