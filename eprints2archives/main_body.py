@@ -38,6 +38,8 @@ from .services import service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
 from .styled import styled
 
+from .services.upload_status import Status
+
 
 # Constants.
 # .............................................................................
@@ -49,7 +51,7 @@ _PARALLEL_THRESHOLD = 2
 # .............................................................................
 
 class MainBody(Thread):
-    '''Main body of Check It! implemented as a Python thread.'''
+    '''Main body of eprints2archives implemented as a Python thread.'''
 
     def __init__(self, **kwargs):
         '''Initializes main body thread object but does not start the thread.'''
@@ -154,7 +156,7 @@ class MainBody(Thread):
                 self._report(f'eprints2archives starting {timestamp()}.', True)
             else:
                 alert_fatal(f'Cannot write to file "{self.report_file}"')
-                raise CannotProceed(ExitCode.exception)
+                raise CannotProceed(ExitCode.file_error)
 
 
     def _do_main_work(self):
@@ -332,45 +334,46 @@ class MainBody(Thread):
 
 
     def _send(self, urls_to_send):
+        '''Send the list of URLs to each web archiving service in parallel.'''
+
         num_urls = len(urls_to_send)
         num_dest = len(self.dest)
         self._report(f'{num_urls} URLs to be sent to {num_dest} {plural("service", num_dest)}.')
         if self.force:
             inform('Force option given ⟹  adding URLs even if archives have copies.')
 
-        with Progress('[progress.description]{task.description}',
-                      BarColumn(bar_width = None),
-                      TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped'),
-                      refresh_per_second = 5) as progress:
+        # Helper function: send urls to given service & use progress bar.
+        def send_to_service(dest, pbar):
+            num_added = 0
+            num_skipped = 0
+            description = activity(dest, Status.RUNNING)
+            task = pbar.add_task(description, total = num_urls, added = 0, skipped = 0)
+            notify = lambda s: pbar.update(task, description = activity(dest, s), refresh = True)
+            for url in urls_to_send:
+                if __debug__: log(f'next for {dest}: {url}')
+                (added, num_existing) = dest.save(url, notify, self.force)
+                added_str = "added" if added else "skipped"
+                num_added += int(added)
+                num_skipped += int(not added)
+                pbar.update(task, advance = 1, added = num_added, skipped = num_skipped)
+                self._report(f'{url} ➜ {dest.name}: {added_str}')
 
-            def send_to_service(dest, pbar):
-                header  = f'[green]Sending URLs to [{dest.color}]{dest.name}[/{dest.color}] ...'
-                added_count = skipped_count = 0
-                bar = pbar.add_task(header, total = num_urls, added = 0, skipped = 0)
-                for url in urls_to_send:
-                    if __debug__: log(f'next for {dest}: {url}')
-                    (added, num_existing) = dest.save(url, self.force)
-                    added_str = "added" if added else "skipped"
-                    if __debug__: log(f'{dest}: {url} {added_str}')
-                    added_count += int(added)
-                    skipped_count += int(not added)
-                    pbar.update(bar, advance = 1, added = added_count, skipped = skipped_count)
-                    self._report(f'{url} ➜ {dest.name}: {added_str}')
-
+        # Start of actual procedure.
+        bar  = BarColumn(bar_width = None)
+        info = TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped')
+        with Progress('[progress.description]{task.description}', bar, info) as pbar:
             if __debug__: log(f'starting {self.threads} threads')
             if self.threads == 1:
                 # For 1 thread, avoid thread pool to make debugging easier.
-                results = [send_to_service(d, progress) for d in self.dest]
+                results = [send_to_service(service, pbar) for service in self.dest]
             else:
-                # Send the list of wanted articles to each service in parallel.
                 num_threads = min(num_dest, self.threads)
                 with ThreadPoolExecutor(max_workers = num_threads) as e:
                     # Don't use TPE map() b/c it doesn't bubble up exceptions.
                     futures = []
                     for service in self.dest:
-                        futures.append(e.submit(send_to_service, service, progress))
+                        futures.append(e.submit(send_to_service, service, pbar))
                     results = [f.result() for f in futures]
-
         self._report(f'Completed sending {num_urls} URLs.')
 
 
@@ -384,6 +387,7 @@ class MainBody(Thread):
         # Opening/closing the file for every write is inefficient, but our
         # network operations are slow, so I think this is not going to have
         # enough impact to be concerned
+        if __debug__: log(text)
         with open(self.report_file, 'w' if overwrite else 'a') as f:
             f.write(text + os.linesep)
 
@@ -425,3 +429,15 @@ def fmt_statuses(status_list, negated):
         return ', '.join(as_list[:-1]) + and_or + as_list[-1]
     else:
         return as_list[0]
+
+
+def activity(dest, status):
+    name = f'[{dest.color}]{dest.name}[/{dest.color}]'
+    if status == Status.RUNNING:
+        return f'[green]Sending URLs to {name} ...         '
+    elif status == Status.PAUSED_RATE:
+        return f'[magenta3]Paused for rate limit {name} ... '
+    elif status == Status.PAUSED_ERROR:
+        return f'[orange1]Paused for error {name} ...      '
+    else:
+        import pdb; pdb.set_trace()
