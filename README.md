@@ -51,11 +51,103 @@ Usage
 
 For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
 
+`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given by the option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`. **This program will automatically add `/eprint` to the URL**, so when writing the URL after option `-a`, omit the trailing `/eprint` part of the URL.
+
+Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program uses the operating system's keyring/keychain functionality. If the login and password for a given EPrints server does not exist in the keychain from a previous run of `eprints2archives`, it will ask the user interactively for the user name and password, and (unless the `-K` option &ndash; or `/K` &ndash; is given) store them in the user's keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
+
+
+### Specifying which records to send
+
+The EPrints records to be sent to the web archiving services will be limited to the records indicated by the option `-i` (or `/i` on Windows). If no `-i` option is given, this program will use all the records available at the given EPrints server. The value of `-i` can be one or more integers separated by commas (e.g., `-i 54602,54604`), or a range of numbers separated by a dash (e.g., `-i 1-100`, which is interpreted as the list of numbers 1, 2, ..., 100 inclusive), or some combination thereof. The value of the option `-i` can also be a file, in which case, the file is read to get a list of identifiers. Note that if you use the `-i` option, you may also want to use the `-k` option described below.
+
+If the `-l` option (or `/l` on Windows) is given, the records will be additionally filtered to return only those whose last-modified date/time stamp is no older than the given date/time description.  Valid descriptors are those accepted by the Python [dateparser](https://pypi.org/project/dateparser/) library.  Make sure to enclose descriptions within single or double quotes.  Examples:
+
+``` shell
+eprints2archives -l "2 weeks ago" -a ....
+eprints2archives -l "2014-08-29"  -a ....
+eprints2archives -l "12 Dec 2014" -a ....
+eprints2archives -l "July 4, 2013" -a ....
+```
+
+If the `-s` option (or `/s` on Windows) is given, the records will also be filtered to include only those whose `<eprint_status>` element value is one of the listed status codes.  Comparisons are done in a case-insensitive manner.  Putting a caret character (`^`) in front of the status (or status list) negates the sense, so that `eprints2archives` will only keep those records whose `<eprint_status>` value is *not* among those given. Examples:
+
+``` shell
+eprints2archives -s archive -a ...
+eprints2archives -s ^inbox,buffer,deletion -a ...
+```
+
+Both lastmod and status filering are done after the `-i` argument is processed.
+
+By default, if an error occurs when requesting a record from the EPrints server, `eprints2archives` will stop execution.  Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors.  If the option `-k` (or `/k` on Windows) is given, `eprints2archives` will attempt to keep going upon encountering missing records, or missing files within records, or similar errors.  Option `-k` is particularly useful when giving a range of numbers with the `-i` option, as it is common for EPrints records to be updated or deleted and gaps to be left in the numbering.  (Running without `-i` will skip over gaps in the numbering because the available record numbers will be obtained directly from the server, which is unlike the user providing a list of record numbers that may or may not exist on the server.  However, even without `-i`, errors may still result from permissions errors or other causes.)
+
+
+### Specifying where to send records
+
+`eprints2archives` has a set of built-in adapters to interact with a number of known public web archiving services. To learn which services `eprints2archives` knows about, use the option `-S` (or `/S` on Windows). By default, the program will send EPrints record URLs to all the known services. The option `-d` (or `/d` on Windows) can be used to select one or a list of destination services instead.  Lists of services should be separated by commas with no spaces between them;
+e.g., `internetarchive,archivetoday`.
+
+By default, `eprints2archives` will only ask a service to archive a copy of an EPrints record if the service does not already have an archived copy.  This makes sense because EPrints records usually change infrequently, and there's little point in repeatedly asking web archives to make new archives.  However, if you have reason to want the web archives to re-archive EPrints records, you can use the option `-f` (or `/f` on Windows).
+
+`eprints2archives` will use parallel process threads to query the EPrints server as well as to send records to archiving services.  By default, the maximum number of threads used is equal to 1/2 of the number of cores on the computer it is running on. The option `-t` (or `/t` on Windows) can be used to change this number.  `eprints2archives` will always use only one thread per web archiving service (and since there are only a few services, only a few threads are usable during that phase of operation), but a high number of threads can be helpful to speed up the initial data gathering step from the EPrints server.
+
+Beware that there is a lag between when web archives such as Internet Archive receive a URL submission and when a saved copy is made available from the archive.  (In the case of Internet Archive, it is 3-10 hours.)  If you cannot find a given EPrints page in an archive shortly after running `eprints2archives`, it may be because not enough time has passed &ndash; try again later.
+
+
+### Other command-line arguments
+
+To save a report of the articles sent to archiving services, you can use the option `-r` (`/r` on Windows) followed by a file name.
+
+`eprints2archives` will print messages as it works. To limit the messages to warnings and errors only, use the option `-q` (or `/q` on Windows). Also, output is color-coded by default unless the `-C` option (or `/C` on Windows) is given; this option can be helpful if the color control signals create problems for your terminal emulator.
+
+If given the `-@` argument (`/@` on Windows), this program will output a detailed trace of what it is doing, and will also drop into a debugger upon the occurrence of any errors.  The debug trace will be written to the given destination, which can be a dash character (`-`) to indicate console output, or a file path.
+
+If given the `-V` option (`/V` on Windows), this program will print the version and other information, and exit without doing anything else.
+
+
+### _Summary of command-line options_
+
+The following table summarizes all the command line options available. (Note: on Windows computers, `/` must be used as the prefix character instead of `-`):
+
+| Short&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   | Long&nbsp;form&nbsp;opt&nbsp;&nbsp; | Meaning | Default |  |
+|---------|-------------------|----------------------|---------|---|
+| `-a`_A_ | `--api-url`_A_    | Use _A_ as the server's REST API URL | | ⚑ |
+| `-d`_D_ | `--dest`_D_        | Send to destination service(s) _D_ | Send to all | |
+| `-f`    | `--force`          | Send each record even if copy already exists | Skip already-archived records | |
+| `-i`_I_ | `--id-list`_I_    | Records to get (can be a file name) | Fetch all records from the server | |
+| `-k`    | `--keep-going`    | Don't count missing records as an error | Stop if encounter missing record | |
+| `-l`_L_ | `--lastmod`_L_    | Filter by last-modified date/time | Don't filter by date/time | |
+| `-q`    | `--quiet`         | Don't print info messages while working | Be chatty while working | |
+| `-s`_S_ | `--status`_S_     | Filter by status(s) in _S_ | Don't filter by status | |
+| `-u`_U_ | `--user`_U_       | User name for EPrints server login | No user name |
+| `-p`_P_ | `--password`_U_   | Password for EPrints proxy login | No password |
+| `-C`    | `--no-color`      | Don't color-code the output | Use colors in the terminal output | |
+| `-K`    | `--no-keyring`    | Don't use a keyring/keychain | Store login info in keyring | |
+| `-S`    | `--services`      | Print list of known archiving services and exit | Do other actions instead |
+| `-V`    | `--version`       | Print program version info and exit | Do other actions instead | |
+| `-@`_OUT_ | `--debug`_OUT_    | Debugging mode; write trace to _OUT_ | Normal mode | ⚐ |
+
+ ⚑ &nbsp; Required argument.<br>
+⚐ &nbsp; To write to the console, use the character `-` as the value of _OUT_; otherwise, _OUT_ must be the name of a file where the output should be written.
+
+
+### Return values
+
+This program exits with a return code of 0 if no problems are encountered.  It returns a nonzero value otherwise, following conventions used in shells such as [bash](https://www.gnu.org/software/bash) which only understand return code values of 0 to 255. The following table lists the possible return values:
+
+```
+0 = success -- program completed normally
+1 = no network detected -- cannot proceed
+2 = encountered a bad or missing value for an option
+3 = file error -- encountered a problem with a file
+4 = the user interrupted the program's execution
+5 = an exception or fatal error occurred
+```
+
 
 Known issues and limitations
 ----------------------------
 
-_Forthcoming_
+Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 3 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
 
 
 Getting help
