@@ -1,9 +1,7 @@
 Change log for REPOSITORY
 =========================
 
-Version 0.0.0
+Version 1.0.0
 -------------
 
-* Write about a change here
-* Write about another change here
-* Write about a 3rd change
+First working version.  Supports sending EPrints pages to the [Internet Archive](https://archive.org/web/) and [Archive.Today](https://archive.today).  Runs with parallel threads and handles rate limits automatically.  Currently implements a command-line interface only.
