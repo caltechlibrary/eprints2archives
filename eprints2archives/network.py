@@ -137,7 +137,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 raise error
 
 
-def net(method, url, session = None, timeout = 20,
+def net(method, url, session = None, timeout = 20, handle_rate = True,
         polling = False, recursing = 0, **kwargs):
     '''Invoke HTTP "method" on 'url' with optional keyword arguments provided.
 
@@ -147,14 +147,22 @@ def net(method, url, session = None, timeout = 20,
     the second element will be None.  This allows the caller to inspect the
     response even in cases where exceptions are raised.
 
-    If keyword 'session' is not None, it's assumed to be a requests session
-    object to use for the network call.
+    If keyword 'session' is not None, it's assumed to be a Python requests
+    Session object to use for the network call.
+
+    If keyword 'handle_rate' is True, this function will automatically pause
+    and retry if it receives an HTTP code 429 ("too many requests") from the
+    server.  If False, it will return the exception RateLimitExceeded instead.
 
     If keyword 'polling' is True, certain statuses like 404 are ignored and
-    the response is returned; otherwise, they are considered errors.
+    the response is returned; otherwise, they are considered errors.  The
+    behavior when True is useful in situations where a URL does not exist until
+    something is ready at the server, and the caller is repeatedly checking
+    the URL.  It is up to the caller to implement the polling schedule and
+    call this function (with polling = True) as needed.
 
-    This method hands allow_redirects = True to the underlying Python requests
-    network call.
+    This method always passes the argument allow_redirects = True to the
+    underlying Python requests library network call.
     '''
     def addurl(text):
         return f'{text} for {url}'
@@ -218,19 +226,21 @@ def net(method, url, session = None, timeout = 20,
     elif code in [415, 416]:
         error = ServiceFailure(addurl('Server rejected the request ({req.reason})'))
     elif code == 429:
-        if recursing < _MAX_RECURSIVE_CALLS:
+        if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
             if __debug__: log(f'rate limit hit -- sleeping {pause}')
             sleep(pause)                  # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
-            return net(method, url, session, timeout, polling, recursing + 1, **kwargs)
-        error = RateLimitExceeded('Server blocking further requests due to rate limits')
+            return net(method, url, session = session, timeout = timeout,
+                       polling = polling, handle_rate = True,
+                       recursing = recursing + 1, **kwargs)
+        error = RateLimitExceeded('Server blocking requests due to rate limits')
     elif code == 503:
         error = ServiceFailure(f'{req.reason}')
     elif code == 504:
         error = ServiceFailure(f'Server timeout: {req.reason}')
     elif code in [500, 501, 502, 506, 507, 508]:
-        error = ServiceFailure(addurl(f'Server error (server code {code} -- {req.reason})'))
+        error = ServiceFailure(addurl(f'Server error (code {code} -- {req.reason})'))
     elif not (200 <= code < 400):
         error = NetworkFailure(f'Unable to resolve {url}')
     if __debug__: log('returning result {}',
