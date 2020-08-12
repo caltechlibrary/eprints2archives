@@ -54,7 +54,6 @@ disable_ssl_cert_check()
     status     = ('only get records whose status is in the list "S"',       'option', 's'),
     threads    = ('number of threads to use (default: #cores/2)',           'option', 't'),
     no_color   = ('do not color-code terminal output',                      'flag',   'C'),
-    no_gui     = ('do not start the GUI interface (default: do)',           'flag',   'G'),
     no_keyring = ('do not store credentials in a keyring service',          'flag',   'K'),
     services   = ('print list of known archiving services and exit',        'flag',   'S'),
     version    = ('print version info and exit',                            'flag',   'V'),
@@ -64,7 +63,7 @@ disable_ssl_cert_check()
 def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
          keep_going = False, lastmod = 'L', quiet = False, user = 'U',
          password = 'P', report = 'R', status = 'S', threads = 'T',
-         no_gui = False, no_color = False, no_keyring = False,
+         no_color = False, no_keyring = False,
          services = False, version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
@@ -246,7 +245,7 @@ Command-line options summary
     ui = manager = exception = None
     try:
         ui = UI('eprints2archives', 'send EPrints records to web archives',
-                use_gui = not no_gui, use_color = not no_color, be_quiet = quiet)
+                use_color = not no_color, be_quiet = quiet)
         auth = AuthHandler(prompter = ui.login_details,
                            user = None if user == 'U' else user,
                            pswd = None if password == 'P' else password,

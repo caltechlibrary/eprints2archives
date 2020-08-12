@@ -200,7 +200,6 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [lxml](https://lxml.de) &ndash; an XML parsing library for Python
 * [plac](http://micheles.github.io/plac/) &ndash; a command line argument parser
 * [pydash]() &ndash; kitchen sink of Python utility libraries for doing “stuff” 
-* [Pypubsub]() &ndash; library to implement publish/subscribe mechanisms
 * [requests](http://docs.python-requests.org) &ndash; an HTTP library for Python
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
