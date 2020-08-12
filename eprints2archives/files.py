@@ -32,7 +32,7 @@ from .debug import log
 # Constants.
 # .............................................................................
 
-_EPRINTS2BAGS_REG_PATH = r'Software\Caltech Library\eprints2bags\Settings'
+_EPRINTS2ARCHIVES_REG_PATH = r'Software\Caltech Library\eprints2archives\Settings'
 
 
 # Main functions.
@@ -114,7 +114,7 @@ def module_path():
 
 
 def datadir_path():
-    '''Returns the path to eprints2bags internal data directory.'''
+    '''Returns the path to eprints2archives internal data directory.'''
     return path.join(module_path(), 'data')
 
 
@@ -126,22 +126,22 @@ def desktop_path():
         return path.join(path.join(path.expanduser('~')), 'Desktop')
 
 
-def eprints2bags_path():
-    '''Returns the path to where eprints2bags is installed.'''
+def eprints2archives_path():
+    '''Returns the path to where eprints2archives is installed.'''
     # The path returned by module.__path__ is to the directory containing
     # the __init__.py file.  What we want here is the path to the installation
-    # of the eprints2bags binary.
+    # of the eprints2archives binary.
     if sys.platform.startswith('win'):
         from winreg import OpenKey, CloseKey, QueryValueEx, HKEY_LOCAL_MACHINE, KEY_READ
         try:
             if __debug__: log('reading Windows registry entry')
-            key = OpenKey(HKEY_LOCAL_MACHINE, _EPRINTS2BAGS_REG_PATH)
+            key = OpenKey(HKEY_LOCAL_MACHINE, _EPRINTS2ARCHIVES_REG_PATH)
             value, regtype = QueryValueEx(key, 'Path')
             CloseKey(key)
             if __debug__: log(f'path to windows installation: {value}')
             return value
         except WindowsError:
             # Kind of a problem. Punt and return a default value.
-            return path.abspath('C:\Program Files\eprints2bags')
+            return path.abspath('C:\Program Files\eprints2archives')
     else:
         return path.abspath(path.join(module_path(), '..'))
