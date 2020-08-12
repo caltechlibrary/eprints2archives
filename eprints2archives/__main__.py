@@ -41,23 +41,23 @@ disable_ssl_cert_check()
 # ......................................................................
 
 @plac.annotations(
-    api_url    = ('the URL for the REST API of the EPrints server',         'option', 'a'),
-    dest       = ('send to destination service "D" (default: "all")',       'option', 'd'),
-    force      = ('ask services to archive records even if already there',  'flag',   'f'),
-    id_list    = ('list of EPrint record identifiers (can be a file)',      'option', 'i'),
-    keep_going = ('do not stop if missing EPrints records encountered',     'flag',   'k'),
-    lastmod    = ('only get EPrints records modified after given date',     'option', 'l'),
-    quiet      = ('do not print informational messages while working',      'flag',   'q'),
-    user       = ('EPrints server user login name "U"',                     'option', 'u'),
-    password   = ('EPrints server user password "P"',                       'option', 'p'),
-    report     = ('save a report of what was saved to file "R"',            'option', 'r'),
-    status     = ('only get records whose status is in the list "S"',       'option', 's'),
-    threads    = ('number of threads to use (default: #cores/2)',           'option', 't'),
-    no_color   = ('do not color-code terminal output',                      'flag',   'C'),
-    no_keyring = ('do not store credentials in a keyring service',          'flag',   'K'),
-    services   = ('print list of known archiving services and exit',        'flag',   'S'),
-    version    = ('print version info and exit',                            'flag',   'V'),
-    debug      = ('write detailed trace to "OUT" ("-" means console)',      'option', '@'),
+    api_url    = ('the URL for the REST API of the EPrints server',        'option', 'a'),
+    dest       = ('send to destination service "D" (default: "all")',      'option', 'd'),
+    force      = ('ask services to archive records even if already there', 'flag',   'f'),
+    id_list    = ('list of EPrint record identifiers (can be a file)',     'option', 'i'),
+    keep_going = ('do not stop if missing EPrints records encountered',    'flag',   'k'),
+    lastmod    = ('only get EPrints records modified after given date',    'option', 'l'),
+    quiet      = ('do not print informational messages while working',     'flag',   'q'),
+    user       = ('EPrints server user login name "U"',                    'option', 'u'),
+    password   = ('EPrints server user password "P"',                      'option', 'p'),
+    report     = ('save a report of what was saved to file "R"',           'option', 'r'),
+    status     = ('only get records whose status is in the list "S"',      'option', 's'),
+    threads    = ('number of threads to use (default: #cores/2)',          'option', 't'),
+    no_color   = ('do not color-code terminal output',                     'flag',   'C'),
+    no_keyring = ('do not store credentials in a keyring service',         'flag',   'K'),
+    services   = ('print list of known archiving services and exit',       'flag',   'S'),
+    version    = ('print version info and exit',                           'flag',   'V'),
+    debug      = ('write detailed trace to "OUT" ("-" means console)',     'option', '@'),
 )
 
 def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
@@ -67,13 +67,12 @@ def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
          services = False, version = False, debug = 'OUT'):
     '''eprints2archives sends EPrints content to web archiving services.
 
-One way to improve preservation and distribution of EPrints server content is
-to ask web archiving sites such as the Internet Archive to store copies of the
-public EPrints web pages.  Eprints2archives is a self-contained program for
-doing just that.  It contacts a given EPrints server, obtains the list of
-documents it serves (optionally modified based on selectors such as date),
-determines the URLs for the document pages on the EPrints server, and sends
-the URLs to archiving sites.
+This program contacts a given EPrints server, obtains the list of documents it
+serves (optionally modified based on selectors such as date), determines the
+URLs for the document pages on the EPrints server, and sends the URLs to
+archiving sites such as the Internet Archive.  The resulting web page archives,
+thus stored in independent 3rd-party archiving sites, helps preserve the
+EPrints content.
 
 Specifying which EPrints server to contact
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
