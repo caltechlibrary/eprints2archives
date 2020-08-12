@@ -85,7 +85,7 @@ def netloc(url):
 
 
 def timed_request(method, url, session = None, timeout = 20, **kwargs):
-    '''Perform a network access (e.g., "get"), handling timeouts and retries.
+    '''Perform a network access, automatically retrying if exceptions occur.
 
     The value given to parameter "method" must be a string chosen from among
     valid HTTP methods, such as "get", "post", or "head".  If "session" is
@@ -114,6 +114,10 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 if isinstance(ex.args[0], urllib3.exceptions.MaxRetryError):
                     # No point in retrying if we get this.
                     raise ex
+            if not isinstance(ex, Eprints2ArchivesException):
+                # This is something unanticipated, and not a network-related
+                # exception.  Don't hide it behind a long retry sequence.
+                raise ex
             # Problem might be transient.  Don't quit right away.
             failures += 1
             if __debug__: log(f'exception (failure #{failures}): {str(ex)}')
