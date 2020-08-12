@@ -25,7 +25,7 @@ Table of contents
 Introduction
 ------------
 
-One way to improve preservation and distribution of EPrints server contents is to ask web archiving sites such as the [Internet Archive](https://archive.org/web/) to archive the public web pages for a given EPrints server.  _Eprints2archives_ is a self-contained program that does exactly that.  It contacts a given EPrints server, obtains the list of documents it serves (optionally modified based on selectors such as date), and sends the URLs to archiving sites.  The program is written in Python 3 and works over a network using an EPrints server's REST API.
+One way to improve preservation and distribution of EPrints server contents is to archive the web pages in archiving sites such as the [Internet Archive](https://archive.org/web/).  _Eprints2archives_ is a self-contained program that does exactly that.  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based such as such things as modification date), and sends the document URLs to archiving sites.  The program is written in Python 3 and works over a network using an EPrints server's REST API.
 
 
 Installation
@@ -33,17 +33,17 @@ Installation
 
 The instructions below assume you have a Python interpreter installed on your computer; if that's not the case, please first install Python and familiarize yourself with running Python programs on your system.
 
-On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install `eprints2archives` with [pip](https://pip.pypa.io/en/stable/installing/).  (If you don't have `pip` already installed on your computer, please seek out instructions for how to obtain it for your particular operating system.)  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
+On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install `eprints2archives` with [`pip`](https://pip.pypa.io/en/stable/installing/).  (If you don't have `pip` already installed on your computer, please seek out instructions for how to obtain it for your particular operating system.)  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
 ```
 python3 -m pip install eprints2archives --upgrade
 ```
 
-As an alternative to getting it from PyPI, you can use `pip` to install `eprints2archives` directly from GitHub:
+As an alternative to getting it from [PyPI](https://pypi.org), you can use `pip` to install `eprints2archives` directly from GitHub:
 ```sh
 python3 -m pip install git+https://github.com/caltechlibrary/eprints2archives.git --upgrade
 ```
 
-Assuming that the installation proceeds normally, on Linux and macOS systems, you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell for commands.
+Assuming that the installation proceeds normally, on Linux and macOS systems, you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell.
  
 
 Usage
@@ -51,12 +51,12 @@ Usage
 
 For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
 
-`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given by the option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`. **This program will automatically add `/eprint` to the URL**, so when writing the URL after option `-a`, omit the trailing `/eprint` part of the URL.
+`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given as the value to option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`. **This program will automatically add `/eprint` to the URL**, so omit the trailing `/eprint` part of the URL given to `-a`.
 
-Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program uses the operating system's keyring/keychain functionality. If the login and password for a given EPrints server does not exist in the keychain from a previous run of `eprints2archives`, it will ask the user interactively for the user name and password, and (unless the `-K` option &ndash; or `/K` &ndash; is given) store them in the user's keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
+Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask the user interactively for the user name and password, and then (unless the `-K` option &ndash; or `/K` &ndash; is given) store them in the user's keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
 
 
-### Specifying which records to send
+### How the list of records is determined
 
 The EPrints records to be sent to the web archiving services will be limited to the records indicated by the option `-i` (or `/i` on Windows). If no `-i` option is given, this program will use all the records available at the given EPrints server. The value of `-i` can be one or more integers separated by commas (e.g., `-i 54602,54604`), or a range of numbers separated by a dash (e.g., `-i 1-100`, which is interpreted as the list of numbers 1, 2, ..., 100 inclusive), or some combination thereof. The value of the option `-i` can also be a file, in which case, the file is read to get a list of identifiers. Note that if you use the `-i` option, you may also want to use the `-k` option described below.
 
@@ -76,12 +76,23 @@ eprints2archives -s archive -a ...
 eprints2archives -s ^inbox,buffer,deletion -a ...
 ```
 
-Both lastmod and status filering are done after the `-i` argument is processed.
+Both `--lastmod` and `--status` filering are done after the `-i` argument is processed.
 
-By default, if an error occurs when requesting a record from the EPrints server, `eprints2archives` will stop execution.  Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors.  If the option `-k` (or `/k` on Windows) is given, `eprints2archives` will attempt to keep going upon encountering missing records, or missing files within records, or similar errors.  Option `-k` is particularly useful when giving a range of numbers with the `-i` option, as it is common for EPrints records to be updated or deleted and gaps to be left in the numbering.  (Running without `-i` will skip over gaps in the numbering because the available record numbers will be obtained directly from the server, which is unlike the user providing a list of record numbers that may or may not exist on the server.  However, even without `-i`, errors may still result from permissions errors or other causes.)
+By default, if an error occurs when requesting a record from the EPrints server, `eprints2archives` will stop execution.  Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors.  If the option `-k` (or `/k` on Windows) is given, `eprints2archives` will attempt to keep going upon encountering missing records, or missing files within records, or similar errors.  Option `-k` is particularly useful when giving a range of numbers with the `-i` option, as it is common for EPrints records to be updated or deleted and gaps to be left in the numbering.  (Running _without_ `-i` will skip over gaps in the numbering because the available record numbers will be obtained directly from the server, which is unlike the case when a user provides a list of record numbers that may or may not exist on the server.  However, even without `-i`, errors may still result from permissions errors or other causes.)
 
 
-### Specifying where to send records
+### How URLs are constructed
+
+For every EPrint record, `eprints2archives` constructs 3 URLs and verifies that they exist on the EPrints server; thus, there may be up to 3 URLs sent to each public web archive for every EPrint record on a server.  The URLs are as follows (where `SERVER` is the server hostname + post number (if any), and `N` is the id number of the EPrint record):
+
+1. `https://SERVER/N`
+2. `https://SERVER/id/eprint/N`
+3. The value of the field `<official_url>` (if any) in the EPrint record.
+
+The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  The third (the value of `<official_url>`) may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `<official_url>` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter resolves to the former.
+
+
+### How the destination is determined
 
 `eprints2archives` has a set of built-in adapters to interact with a number of known public web archiving services. To learn which services `eprints2archives` knows about, use the option `-S` (or `/S` on Windows). By default, the program will send EPrints record URLs to all the known services. The option `-d` (or `/d` on Windows) can be used to select one or a list of destination services instead.  Lists of services should be separated by commas with no spaces between them;
 e.g., `internetarchive,archivetoday`.
@@ -90,18 +101,18 @@ By default, `eprints2archives` will only ask a service to archive a copy of an E
 
 `eprints2archives` will use parallel process threads to query the EPrints server as well as to send records to archiving services.  By default, the maximum number of threads used is equal to 1/2 of the number of cores on the computer it is running on. The option `-t` (or `/t` on Windows) can be used to change this number.  `eprints2archives` will always use only one thread per web archiving service (and since there are only a few services, only a few threads are usable during that phase of operation), but a high number of threads can be helpful to speed up the initial data gathering step from the EPrints server.
 
-Beware that there is a lag between when web archives such as Internet Archive receive a URL submission and when a saved copy is made available from the archive.  (In the case of Internet Archive, it is 3-10 hours.)  If you cannot find a given EPrints page in an archive shortly after running `eprints2archives`, it may be because not enough time has passed &ndash; try again later.
+Beware that there is a lag between when web archives such as Internet Archive receive a URL submission and when a saved copy is made available from the archive.  (In the case of Internet Archive, it is [3-10 hours](https://help.archive.org/hc/en-us/articles/360004651732-Using-The-Wayback-Machine).)  If you cannot find a given EPrints page in an archive shortly after running `eprints2archives`, it may be because not enough time has passed &ndash; try again later.
 
 
 ### Other command-line arguments
 
-To save a report of the articles sent to archiving services, you can use the option `-r` (`/r` on Windows) followed by a file name.
+To save a report of the articles sent, you can use the option `-r` (`/r` on Windows) followed by a file name.
 
-`eprints2archives` will print messages as it works. To limit the messages to warnings and errors only, use the option `-q` (or `/q` on Windows). Also, output is color-coded by default unless the `-C` option (or `/C` on Windows) is given; this option can be helpful if the color control signals create problems for your terminal emulator.
+`eprints2archives` will print informative messages as it works. To limit the messages to warnings and errors only, use the option `-q` (or `/q` on Windows). Also, output is color-coded by default unless the `-C` option (or `/C` on Windows) is given; this option can be helpful if the color control signals create problems for your terminal emulator.
 
 If given the `-@` argument (`/@` on Windows), this program will output a detailed trace of what it is doing, and will also drop into a debugger upon the occurrence of any errors.  The debug trace will be written to the given destination, which can be a dash character (`-`) to indicate console output, or a file path.
 
-If given the `-V` option (`/V` on Windows), this program will print the version and other information, and exit without doing anything else.
+If given the `-V` option (`/V` on Windows), this program will print the version and other information to the console, and exit without doing anything else.
 
 
 ### _Summary of command-line options_
