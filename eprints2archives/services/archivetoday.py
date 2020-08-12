@@ -107,7 +107,7 @@ we've already been trying for a considerable amount of time and the root cause
 may be significant.'''
 
 _RATE_LIMIT_SLEEP = 300
-'''Time in seconds we pasuse if we hit the rate limit.  This is handled
+'''Time in seconds we pause if we hit the rate limit.  This is handled
 separately from error conditions.'''
 
 
@@ -200,7 +200,7 @@ class ArchiveToday(Service):
         # The order of the content of the post body matters to Archive.today.
         payload = OrderedDict({'submitid': sid, 'url': url})
         (response, error) = net('post', action_url, session = session,
-                                headers = headers, data = payload)
+                                handle_rate = False, headers = headers, data = payload)
 
         if not error:
             if 'Refresh' in response.headers:

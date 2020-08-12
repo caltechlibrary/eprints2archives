@@ -34,13 +34,17 @@ from .upload_status import Status
 _MAX_RETRIES = 8
 '''Maximum number of times we retry before we give up.'''
 
-_RETRY_SLEEP_TIME = 60
+_RETRY_SLEEP = 60
 '''Time in seconds we pause if we get repeated errors.  This pause is on top
 of the maximum time reached after exponential back-off by our underlying
 network code, and is used to pause before the whole scheme is retried again.
 This needs to be a long time because if we invoke our own retry loop, it means
 we've already been trying for a considerable amount of time and the root cause
 may be significant.'''
+
+_RATE_LIMIT_SLEEP = 10
+'''Time in seconds we pause if we hit the rate limit.  This is handled
+separately from error conditions.'''
 
 
 # Classes.
@@ -101,10 +105,16 @@ class InternetArchive(Service):
             if __debug__: log(f'this is retry #{retry}')
         payload = {'url': url, 'capture_all': 'on'}
         action_url = 'https://web.archive.org/save/' + self._uniform(url)
-        (response, error) = net('post', action_url, data = payload)
+        (response, error) = net('post', action_url, handle_rate = False, data = payload)
         if not error:
             if __debug__: log('save request returned normally')
             return True
+        elif isinstance(error, RateLimitExceeded):
+            if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
+            notify(Status.PAUSED_RATE)
+            sleep(_RATE_LIMIT_SLEEP)
+            notify(Status.RUNNING)
+            return self._archive(url, notify)
         else:
             if __debug__: log(f'save request resulted in an error: {str(error)}')
             # Our underlying net(...) function will retry automatically in
@@ -120,7 +130,7 @@ class InternetArchive(Service):
             elif retries_left > 0:
                 # Subtract 1 b/c we try without pause once, before we land here.
                 if __debug__: log(f'pausing due to multiple retries')
-                sleeptime = _RETRY_SLEEP_TIME * pow(retry - 1, 2)
+                sleeptime = _RETRY_SLEEP * pow(retry - 1, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
                 notify(Status.PAUSED_ERROR)
                 sleep(sleeptime)
