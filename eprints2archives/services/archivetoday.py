@@ -5,7 +5,7 @@ Much of the basic algorithm for interacting with Archive.Today was initially
 taken from ArchiveNow (https://github.com/oduwsdl/archivenow), from the
 Web Science and Digital Libraries Research Group at Old Dominion University.
 The ArchiveNow source file used was the following, and it had commit hash
-b4e88b2 at the time of this writing (2020-08-0):
+b4e88b2 at the time of this writing (2020-08-06):
 
 https://github.com/oduwsdl/archivenow/blob/master/archivenow/handlers/is_handler.py
 

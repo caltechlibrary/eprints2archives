@@ -157,7 +157,7 @@ def net(method, url, session = None, timeout = 20,
     network call.
     '''
     def addurl(text):
-        return text + f' for {url}'
+        return f'{text} for {url}'
 
     req = None
     try:

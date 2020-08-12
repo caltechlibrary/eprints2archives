@@ -159,7 +159,7 @@ knows about, use the option -S (or /S on Windows). By default, the program will
 send EPrints record URLs to all the known services. The option -d (or /d on
 Windows) can be used to select one or a list of destination services instead.
 Lists of services should be separated by commas with no spaces between them;
-e.g., "internetarchive,archive.today".
+e.g., "internetarchive,archivetoday".
 
 By default, eprints2archives will only ask a service to archive a copy of an
 EPrints record if the service does not already have an archived copy.  This
@@ -194,11 +194,12 @@ It returns a nonzero value otherwise, following conventions used in shells
 such as bash which only understand return code values of 0 to 255. The
 following table lists the possible return values:
 
-    0 = no errors were encountered -- success
+    0 = success -- program completed normally
     1 = no network detected -- cannot proceed
     2 = encountered a bad or missing value for an option
-    3 = the user interrupted the program's execution
-    4 = an exception or fatal error occurred
+    3 = file error -- encountered a problem with a file
+    4 = the user interrupted the program's execution
+    5 = an exception or fatal error occurred
 
 Other command-line arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

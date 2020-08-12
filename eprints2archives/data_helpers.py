@@ -63,4 +63,5 @@ def plural(word, count):
     elif isinstance(count, (list, set, dict)):
         return word + 's' if len(count) > 1 else word
     else:
+        # If we don't recognize the kind of thing it is, return it unchanged.
         return word
