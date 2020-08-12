@@ -35,7 +35,7 @@ from .exceptions import *
 # .............................................................................
 
 _MAX_RECURSIVE_CALLS = 10
-'''How many times can certain network functions call themselves upcon
+'''How many times can certain network functions call themselves upon
 encountering a network error before they stop and give up.'''
 
 _MAX_FAILURES = 3
@@ -256,94 +256,3 @@ def unwrapped_urllib3_exception(ex):
         return unwrapped_urllib3_exception(ex.args[0])
     else:
         return ex
-
-
-def download_file(url, local_destination):
-    '''An exception-catching version of download(...) that returns True if
-    the content at 'url' could be downloaded to the file 'local_destination',
-    and False otherwise.  It does not throw an exception.'''
-
-    try:
-        download(url, local_destination)
-    except Exception as ex:
-        if __debug__: log(f'download exception: {str(ex)}')
-        return False
-    else:
-        return True
-
-
-def download(url, local_destination, recursing = 0):
-    '''Download the 'url' to the file 'local_destination'.'''
-    def addurl(text):
-        return text + f' for {url}'
-
-    try:
-        req = timed_request('get', url, stream = True)
-    except requests.exceptions.ConnectionError as ex:
-        if recursing >= _MAX_RECURSIVE_CALLS:
-            raise NetworkFailure(addurl('Too many connection errors'))
-        arg0 = ex.args[0]
-        if isinstance(arg0, urllib3.exceptions.MaxRetryError):
-            if __debug__: log(str(arg0))
-            original = unwrapped_urllib3_exception(arg0)
-            if isinstance(original, str) and 'unreacheable' in original:
-                return (req, NetworkFailure(addurl('Unable to connect to server')))
-            elif network_available():
-                raise NetworkFailure(addurl('Unable to resolve host'))
-            else:
-                raise NetworkFailure(addurl('Lost network connection with server'))
-        elif (isinstance(arg0, urllib3.exceptions.ProtocolError)
-              and arg0.args and isinstance(args0.args[1], ConnectionResetError)):
-            if __debug__: log('download() got ConnectionResetError; will recurse')
-            sleep(1)                    # Sleep a short time and try again.
-            recursing += 1
-            download(url, local_destination, recursing)
-        else:
-            raise NetworkFailure(str(ex))
-    except requests.exceptions.ReadTimeout as ex:
-        if network_available():
-            raise ServiceFailure(addurl('Timed out reading data from server'))
-        else:
-            raise NetworkFailure(addurl('Timed out reading data over network'))
-    except requests.exceptions.InvalidSchema as ex:
-        raise NetworkFailure(addurl('Unsupported network protocol'))
-    except Exception as ex:
-        raise
-
-    # Interpret the response.
-    code = req.status_code
-    if code == 202:
-        # Code 202 = Accepted, "received but not yet acted upon."
-        sleep(1)                        # Sleep a short time and try again.
-        recursing += 1
-        if __debug__: log('calling download() recursively for http code 202')
-        download(url, local_destination, recursing)
-    elif 200 <= code < 400:
-        # This started as code in https://stackoverflow.com/a/13137873/743730
-        # Note: I couldn't get the shutil.copyfileobj approach to work; the
-        # file always ended up zero-length.  I couldn't figure out why.
-        with open(local_destination, 'wb') as f:
-            for chunk in req.iter_content(1024):
-                f.write(chunk)
-        req.close()
-        if __debug__: size = stat(local_destination).st_size
-        if __debug__: log(f'wrote {size} bytes to file {local_destination}')
-    elif code in [401, 402, 403, 407, 451, 511]:
-        raise AuthenticationFailure(addurl('Access is forbidden'))
-    elif code in [404, 410]:
-        raise NoContent(addurl('No content found'))
-    elif code in [405, 406, 409, 411, 412, 414, 417, 428, 431, 505, 510]:
-        raise InternalError(addurl(f'Server returned code {code}'))
-    elif code in [415, 416]:
-        raise ServiceFailure(addurl('Server rejected the request'))
-    elif code == 429:
-        raise RateLimitExceeded('Server blocking further requests due to rate limits')
-    elif code == 503:
-        raise ServiceFailure('Server is unavailable -- try again later')
-    elif code == 504:
-        if network_available():
-            raise ServiceFailure(addurl('Server timeout: ' + req.text))
-    elif code in [500, 501, 502, 506, 507, 508]:
-        raise ServiceFailure(addurl(f'Internal server error (HTTP code {code})'))
-    else:
-        raise NetworkFailure(f'Unable to resolve {url}')
