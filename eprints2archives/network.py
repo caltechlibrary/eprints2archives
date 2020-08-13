@@ -143,7 +143,6 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
     if interrupted():
         raise UserCancelled('Network request has been interrupted')
     else:
-        import pdb; pdb.set_trace()
         return None
 
 
