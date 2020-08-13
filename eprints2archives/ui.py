@@ -56,21 +56,30 @@ file "LICENSE" for more information.
 '''
 
 import getpass
-import os
-import os.path as path
 from   queue import Queue
+from   rich.console import Console
+from   rich.style import Style
+from   rich.theme import Theme
 import sys
-import textwrap
-from   time import sleep
 
-from .app_frame import AppFrame
 from .debug import log
 from .exceptions import *
-from .logo import getLogoIcon
-from .styled import Styled, styled
 
 
-# Exported functions
+# Constants.
+# .............................................................................
+
+_CLI_THEME = Theme({
+    'info'        : 'green3',
+    'warn'        : 'orange1',
+    'warning'     : 'orange1',
+    'alert'       : 'red',
+    'alert_fatal' : 'bold red',
+    'fatal'       : 'bold red',
+})
+
+
+# Exported functions.
 # .............................................................................
 # These methods get an instance of the UI by themselves and do not require
 # callers to do it.  They are meant to be used largely like basic functions
@@ -216,7 +225,11 @@ class UI(UIBase):
     def __new__(cls, name, subtitle, use_gui = False, use_color = True, be_quiet = False):
         '''Return an instance of the appropriate user interface handler.'''
         if cls.__instance is None:
-            obj = GUI if use_gui else CLI
+            if use_gui:
+                from .gui import GUI
+                obj = GUI
+            else:
+                obj = CLI
             cls.__instance = obj(name, subtitle, use_gui, use_color, be_quiet)
         return cls.__instance
 
@@ -226,13 +239,12 @@ class UI(UIBase):
         return cls.__instance
 
 
-class CLI(UIBase, Styled):
+class CLI(UIBase):
     '''Command-line interface.'''
 
 
     def __init__(self, name, subtitle, use_gui, use_color, be_quiet):
         UIBase.__init__(self, name, subtitle, use_gui, use_color, be_quiet)
-        Styled.__init__(self, apply_styling = not use_gui, use_color = use_color)
         if __debug__: log('initializing CLI')
         self._started = False
 
@@ -240,11 +252,15 @@ class CLI(UIBase, Styled):
         # initialization, messages will get queued up on this internal queue.
         self._queue = Queue()
 
-        # We want to print a welcome message, but have to queue it and wait
-        # until the CLI has been fully started before printing it.
+        # Initialize output configuration.
+        self._console = Console(theme = _CLI_THEME,
+                                color_system = "auto" if use_color else None)
+
+        # Note that this welcome message will be queued up using our normal
+        # print queueing mechanism (part of self.inform(...)).
         num_dashes = 19 + len(self._name) + len(self._subtitle)
         if self._use_color:
-            name = styled(self._name, ['chartreuse', 'bold'])
+            name = f'[bold chartreuse1]{self._name}[/]'
         else:
             name = self._name
         self.inform('┏' + '━'*num_dashes + '┓')
@@ -256,7 +272,9 @@ class CLI(UIBase, Styled):
         '''Start the user interface.'''
         if __debug__: log('starting CLI')
         while not self._queue.empty():
-            print(self._queue.get(), flush = True)
+            (text, style) = self._queue.get()
+            self._console.print(text, style = style, highlight = False)
+            sys.stdout.flush()
         self._started = True
 
 
@@ -265,31 +283,31 @@ class CLI(UIBase, Styled):
         pass
 
 
-    def _print_or_queue(self, text):
+    def _print_or_queue(self, text, style):
         if self._started:
             if __debug__: log(text)
-            print(text, flush = True)
+            self._console.print(text, style = style, highlight = False)
         else:
             if __debug__: log(f'queueing message "{text}"')
-            self._queue.put(text)
+            self._queue.put((text, style))
 
 
     def inform(self, text, *args):
         '''Print an informational message.'''
         if not self._be_quiet:
-            self._print_or_queue(self.info_text(text, *args))
+            self._print_or_queue(text.format(*args), 'info')
         else:
             if __debug__: log(text, *args)
 
 
     def warn(self, text, *args):
         '''Print a nonfatal, noncritical warning message.'''
-        self._print_or_queue(self.warning_text(text, *args))
+        self._print_or_queue(text.format(*args), style = 'warn')
 
 
     def alert(self, text, *args):
         '''Print a message reporting an error.'''
-        self._print_or_queue(self.error_text(text, *args))
+        self._print_or_queue(text.format(*args), style = 'alert')
 
 
     def alert_fatal(self, text, *args, **kwargs):
@@ -302,7 +320,7 @@ class CLI(UIBase, Styled):
         CLI case, there is nothing equivalent to a GUI to shut down).
         '''
         text += '\n' + kwargs['details'] if 'details' in kwargs else ''
-        self._print_or_queue(self.fatal_text(text, *args))
+        self._print_or_queue(text.format(*args), style = 'fatal')
 
 
     def confirm(self, question):
