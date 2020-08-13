@@ -8,6 +8,7 @@ keyrings.alt>=3.1
 lxml>=4.2.5
 plac>=1.0.0
 pydash>=4.8.0
+pypubsub>=4.0.0
 requests>=2.19.1
 rich>=5.1.0
 setuptools>=41.0.1
