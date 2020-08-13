@@ -29,6 +29,7 @@ import warnings
 
 from .debug import log
 from .exceptions import *
+from .interruptible_wait import wait, interrupted
 
 
 # Constants.
@@ -96,7 +97,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
     failures = 0
     retries = 0
     error = None
-    while failures < _MAX_FAILURES:
+    while failures < _MAX_FAILURES and not interrupted():
         try:
             with warnings.catch_warnings():
                 # The underlying urllib3 library used by the Python requests
@@ -136,9 +137,14 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 failures = 0
                 pause = 10 * retries * retries
                 if __debug__: log(f'pausing {pause}s due to consecutive failures')
-                sleep(pause)
+                wait(pause)
             else:
                 raise error
+    if interrupted():
+        raise UserCancelled('Network request has been interrupted')
+    else:
+        import pdb; pdb.set_trace()
+        return None
 
 
 def net(method, url, session = None, timeout = 20, handle_rate = True,
@@ -211,13 +217,13 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
         if __debug__: log('returning NetworkFailure')
         return (req, NetworkFailure(addurl('Unsupported network protocol')))
     except Exception as ex:
-        if __debug__: log('returning exception')
+        if __debug__: log(f'returning exception: {str(ex)}')
         return (req, ex)
 
     # Interpret the response.  Note that the requests library handles code 301
     # and 302 redirects automatically, so we don't need to do it here.
-    code = req.status_code
     error = None
+    code = req.status_code
     if __debug__: log(addurl(f'got http status code {code}'))
     if code == 400:
         error = RequestError(addurl('Server rejected the request'))
@@ -233,7 +239,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
         if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
             if __debug__: log(f'rate limit hit -- sleeping {pause}')
-            sleep(pause)                  # 5 s, then 10 s, then 15 s, etc.
+            wait(pause)                   # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
             return net(method, url, session = session, timeout = timeout,
                        polling = polling, handle_rate = True,

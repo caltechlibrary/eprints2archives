@@ -32,6 +32,7 @@ from .debug import log
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
+from .interruptible_wait import interrupt, interrupted
 from .files import writable
 from .network import network_available, hostname, netloc
 from .services import service_names, service_interfaces, service_by_name
@@ -85,6 +86,7 @@ class MainBody(Thread):
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(f'got {type(ex).__name__}')
             inform('User cancelled operation -- stopping.')
+            interrupt()
         except CannotProceed as ex:
             if __debug__: log(f'got CannotProceed')
             self.exception = (CannotProceed, ex)
@@ -218,6 +220,8 @@ class MainBody(Thread):
                     continue
                 if __debug__: log(f'{eprintid} passed filter checks')
                 records.append(r)
+                if interrupted():
+                    break
             if len(skipped) > 0:
                 inform(f'Skipping {len(skipped)} records due to filtering.')
                 self._report(f'Skipping {len(skipped)} records due to filtering.')
@@ -254,6 +258,8 @@ class MainBody(Thread):
                 urls.append(server.eprint_id_url(r))
                 urls.append(server.eprint_page_url(r))
                 update_progress()
+                if interrupted():
+                    break
             return urls
 
         # Start of actual procedure.
@@ -304,6 +310,8 @@ class MainBody(Thread):
                     else:
                         warn(f'Unable to get data for {item}')
                 update_progress()
+                if interrupted():
+                    break
             return results
 
         # Start of actual procedure.
@@ -357,6 +365,8 @@ class MainBody(Thread):
                 num_skipped += int(not added)
                 pbar.update(task, advance = 1, added = num_added, skipped = num_skipped)
                 self._report(f'{url} ➜ {dest.name}: {added_str}')
+                if interrupted():
+                    break
 
         # Start of actual procedure.
         bar  = BarColumn(bar_width = None)
@@ -388,8 +398,9 @@ class MainBody(Thread):
         # network operations are slow, so I think this is not going to have
         # enough impact to be concerned
         if __debug__: log(text)
-        with open(self.report_file, 'w' if overwrite else 'a') as f:
-            f.write(text + os.linesep)
+        if self.report_file:
+            with open(self.report_file, 'w' if overwrite else 'a') as f:
+                f.write(text + os.linesep)
 
 
 # Helper functions.
@@ -436,7 +447,7 @@ def activity(dest, status):
     if status == Status.RUNNING:
         return f'[green]Sending URLs to {name} ...         '
     elif status == Status.PAUSED_RATE:
-        return f'[magenta3]Paused for rate limit {name} ... '
+        return f'[yellow3 on grey35]Paused for rate limit {name} ... '
     elif status == Status.PAUSED_ERROR:
         return f'[orange1]Paused for error {name} ...      '
     else:

@@ -184,6 +184,8 @@ class ArchiveToday(Service):
             if not error:
                 archive_host = host
                 break
+            else:
+                raise error
         if not archive_host:
             raise ServiceFailure(f'None of the {self.name} servers are responding')
             return False
@@ -221,6 +223,10 @@ class ArchiveToday(Service):
                         if __debug__: log(f'{self.name} saved URL as {saved_url}')
                         return True
             raise InternalError(f'{self.name} returned unexpected response')
+        elif not response:
+            # User cancellation can cause this.
+            if __debug__: log(f'got {error} from net() and no response -- raising it')
+            raise error
         else:
             # Archive.today doesn't return code 429 when you hit the rate limit
             # and instead throws code 503.  See author's posting of 2020-08-04:
