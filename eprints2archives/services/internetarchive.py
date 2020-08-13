@@ -20,6 +20,7 @@ from   time import sleep
 
 from ..debug import log
 from ..exceptions import *
+from ..interruptible_wait import interrupted, wait
 from ..network import net
 from ..ui import warn
 
@@ -112,7 +113,7 @@ class InternetArchive(Service):
         elif isinstance(error, RateLimitExceeded):
             if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
             notify(Status.PAUSED_RATE)
-            sleep(_RATE_LIMIT_SLEEP)
+            wait(_RATE_LIMIT_SLEEP)
             notify(Status.RUNNING)
             return self._archive(url, notify)
         else:
@@ -133,7 +134,7 @@ class InternetArchive(Service):
                 sleeptime = _RETRY_SLEEP * pow(retry - 1, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
                 notify(Status.PAUSED_ERROR)
-                sleep(sleeptime)
+                wait(sleeptime)
                 notify(Status.RUNNING)
                 return self._archive(url, retry)
             else:
