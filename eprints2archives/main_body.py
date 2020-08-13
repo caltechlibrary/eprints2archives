@@ -269,8 +269,8 @@ class MainBody(Thread):
                       TextColumn('{task.completed}/' + intcomma(num_items)),
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
-            server_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Checking variant record URLs on {server_name} ...'
+            server_name = f'[spring_green1]{server}[/]'
+            header  = f'[green3]Checking variant record URLs on {server_name} ...'
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
@@ -321,8 +321,8 @@ class MainBody(Thread):
                       TextColumn('{task.completed}/' + intcomma(num_items)),
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we can pass down.
-            server_name = f'[spring_green1]{server}[/spring_green1]'
-            header  = f'[green]Gathering {description} from {server_name} ...'
+            server_name = f'[spring_green1]{server}[/]'
+            header  = f'[green3]Gathering {description} from {server_name} ...'
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
 
@@ -443,9 +443,9 @@ def fmt_statuses(status_list, negated):
 
 
 def activity(dest, status):
-    name = f'[{dest.color}]{dest.name}[/{dest.color}]'
+    name = f'[{dest.color}]{dest.name}[/]'
     if status == Status.RUNNING:
-        return f'[green]Sending URLs to {name} ...         '
+        return f'[green3]Sending URLs to {name} ...         '
     elif status == Status.PAUSED_RATE:
         return f'[yellow3 on grey35]Paused for rate limit {name} ... '
     elif status == Status.PAUSED_ERROR:
