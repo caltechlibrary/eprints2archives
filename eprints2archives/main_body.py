@@ -115,11 +115,12 @@ class MainBody(Thread):
 
     def _do_preflight(self):
         '''Check the option values given by the user, and do other prep.'''
-
+        # We can't do anything without a network.
         if not network_available():
             alert_fatal('No network connection.')
             raise CannotProceed(ExitCode.no_net)
 
+        # We can't do anything without the EPrints server URL.
         if self.api_url is None:
             alert_fatal('Must provide an EPrints API URL.')
             raise CannotProceed(ExitCode.bad_arg)
@@ -172,7 +173,6 @@ class MainBody(Thread):
 
     def _do_main_work(self):
         '''Performs the core work of this program.'''
-
         server = EPrintServer(self.api_url, self.user, self.password)
 
         inform(f'Getting full EPrints index from [green1]{server}[/] ...')
@@ -262,7 +262,7 @@ class MainBody(Thread):
 
 
     def _eprints_values(self, value_function, items_list, server, description):
-
+        '''Get values using "value_function" for items in "items_list".'''
         # Helper function: body of loop that is executed in all cases.
         def record_values(items, update_progress):
             results = []
@@ -299,7 +299,7 @@ class MainBody(Thread):
 
 
     def _eprints_basic_urls(self, server, records_list):
-
+        '''Get the normal EPrints URLS for the items in "records_list".'''
         # Helper function: body of loop that is executed in all cases.
         def eprints_urls(item_list, update_progress):
             urls = []
@@ -321,7 +321,6 @@ class MainBody(Thread):
 
     def _send(self, urls_to_send):
         '''Send the list of URLs to each web archiving service in parallel.'''
-
         num_urls = len(urls_to_send)
         num_dest = len(self.dest)
         self._report(f'{num_urls} URLs to be sent to {num_dest} {plural("service", num_dest)}.')
@@ -366,22 +365,14 @@ class MainBody(Thread):
 
 
     def _status_acceptable(self, this_status):
+        '''Return True if "this_status" should be accepted based on filters.'''
         # The presence of '^' indicates negation, i.e., "not any of these".
         return ((not '^' in self.status and this_status in self.status)
                 or ('^' in self.status and this_status not in self.status))
 
 
-    def _report(self, text, overwrite = False):
-        # Opening/closing the file for every write is inefficient, but our
-        # network operations are slow, so I think this is not going to have
-        # enough impact to be concerned
-        if __debug__: log(text)
-        if self.report_file:
-            with open(self.report_file, 'w' if overwrite else 'a') as f:
-                f.write(text + os.linesep)
-
-
     def _gathered(self, loop, items_list, header):
+        '''Return the collected results of running "loop" in multiple threads.'''
         num_items = len(items_list)
         with Progress('[progress.description]{task.description}',
                       BarColumn(bar_width = None),
@@ -406,6 +397,16 @@ class MainBody(Thread):
             # We get a list of lists, so flatten it before returning.
             return flatten(f.result() for f in self._futures)
 
+
+    def _report(self, text, overwrite = False):
+        '''Write text to the report file, if a report file is being written.'''
+        # Opening/closing the file for every write is inefficient, but our
+        # network operations are slow, so I think this is not going to have
+        # enough impact to be concerned
+        if __debug__: log(text)
+        if self.report_file:
+            with open(self.report_file, 'w' if overwrite else 'a') as f:
+                f.write(text + os.linesep)
 
 # Helper functions.
 # ......................................................................

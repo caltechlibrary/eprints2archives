@@ -57,6 +57,7 @@ class RunManager():
         if sys.platform == "win32":
             if __debug__: log('installing ctrl_handler for Windows')
 
+            # This is defined here because we need the value of worker.ident.
             def ctrl_handler(event, *args):
                 if __debug__: log('Keyboard interrupt received')
                 from stopit import async_raise
