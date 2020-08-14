@@ -141,6 +141,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
             else:
                 raise error
     if interrupted():
+        if __debug__: log('interrupted -- raising UserCancelled')
         raise UserCancelled('Network request has been interrupted')
     else:
         return None
