@@ -198,7 +198,7 @@ class EPrintServer():
         return xml
 
 
-    def eprint_value(self, id_or_record, field):
+    def eprint_field_value(self, id_or_record, field):
         '''Return the value of 'field' of the record 'id_or_record'.  If
         'id_or_record' is a number (either as a string or an integer), this
         method will ask the server for the field value using the REST API;
