@@ -32,12 +32,11 @@ from .debug import log
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
-from .interruptible_wait import interrupt, interrupted
+from .interruptible_wait import interrupted, raise_for_interrupts
 from .files import writable
 from .network import network_available, hostname, netloc
 from .services import service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
-from .styled import styled
 
 from .services.upload_status import Status
 
@@ -69,7 +68,14 @@ class MainBody(Thread):
         # Additional attributes we set later.
         self.user = None
         self.password = None
-        self.records = None
+
+        # An unfortunate feature of Python's thread handling is that threads
+        # don't get interrupt signals: if the user hits ^C, the parent thread
+        # has to do something to interrupt the child threads deliberately.
+        # We can't do that unless we keep a pointer to the executor and share
+        # it between methods in this class.  Thus, the need for the following:
+        self._executor = None
+        self._futures = []
 
 
     def run(self):
@@ -82,11 +88,10 @@ class MainBody(Thread):
         try:
             self._do_preflight()
             self._do_main_work()
-            inform('Done.')
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(f'got {type(ex).__name__}')
             inform('User cancelled operation -- stopping.')
-            interrupt()
+            self._report('Interrupted')
         except CannotProceed as ex:
             if __debug__: log(f'got CannotProceed')
             self.exception = (CannotProceed, ex)
@@ -99,9 +104,13 @@ class MainBody(Thread):
 
     def stop(self):
         '''Stop the main body thread.'''
-        if __debug__: log('stopping main body thread')
-        # Nothing to do for the current application.
-        pass
+        if self._executor:
+            if __debug__: log('cancelling futures & shutting down executor')
+            for f in self._futures:
+                f.cancel()
+            self._executor.shutdown(wait = False)
+        else:
+            if __debug__: log('no thread pool threads running')
 
 
     def _do_preflight(self):
@@ -144,8 +153,8 @@ class MainBody(Thread):
                     raise CannotProceed(ExitCode.bad_arg)
             self.dest = destination_list
 
-        server = netloc(self.api_url)
-        self.user, self.password, cancel = self.auth_handler.credentials(server)
+        host = netloc(self.api_url)
+        self.user, self.password, cancel = self.auth_handler.credentials(host)
         if cancel:
             raise UserCancelled
 
@@ -166,7 +175,7 @@ class MainBody(Thread):
 
         server = EPrintServer(self.api_url, self.user, self.password)
 
-        inform('Getting full EPrints index from {} ...', styled(server, ['SpringGreen']))
+        inform(f'Getting full EPrints index from [green1]{server}[/] ...')
         available = server.index()
         if not available:
             raise NoContent(f'Received empty list from {server}.')
@@ -174,16 +183,18 @@ class MainBody(Thread):
 
         # If the user wants specific records, check which ones actually exist.
         if self.wanted_list:
-            nonexistent = list(set(self.wanted_list) - set(available))
-            if nonexistent and not self.errors_ok:
-                raise ValueError(f'{intcomma(len(nonexistent))} of the requested'
-                                 + ' records do not exist on the server.')
-            elif nonexistent:
-                warn(f"Records {self.id_list} were specified, but the following"
-                     + " don't exist and will be skipped: "
-                     + ', '.join(str(x) for x in sorted(nonexistent, key = int)) + '.')
-            wanted = sorted(list(set(self.wanted_list) - set(nonexistent)), key = int)
-            self._report(f'User-supplied list of identifiers has {len(wanted)} items in it.')
+            missing = list(set(self.wanted_list) - set(available))
+            if missing and not self.errors_ok:
+                raise ValueError(f'{intcomma(len(missing))} of the requested'
+                                 + ' records do not exist on the server:'
+                                 + f' {", ".join(sorted(missing, key = int))}.')
+            elif missing:
+                msg = (f"Of the records requested, the following don't exist and"
+                       + f" will be skipped: {', '.join(sorted(missing, key = int))}.")
+                warn(msg)
+                self._report(msg)
+            wanted = sorted(list(set(self.wanted_list) - set(missing)), key = int)
+            self._report(f'A total of {len(wanted)} records from {server} will be used.')
         else:
             wanted = available
 
@@ -202,14 +213,14 @@ class MainBody(Thread):
 
         records = []
         if not self.lastmod and not self.status:
-            official_url = lambda r: server.eprint_value(r, 'official_url')
-            urls = self._eprints(official_url, wanted, server, "<official_url>'s")
+            official_url = lambda r: server.eprint_field_value(r, 'official_url')
+            urls = self._eprints_values(official_url, wanted, server, "<official_url>'s")
         else:
             skipped = []
-            for r in self._eprints(server.eprint_xml, wanted, server, "record materials"):
-                eprintid = server.eprint_value(r, 'eprintid')
-                modtime  = server.eprint_value(r, 'lastmod')
-                status   = server.eprint_value(r, 'eprint_status')
+            for r in self._eprints_values(server.eprint_xml, wanted, server, "record materials"):
+                eprintid = server.eprint_field_value(r, 'eprintid')
+                modtime  = server.eprint_field_value(r, 'lastmod')
+                status   = server.eprint_field_value(r, 'eprint_status')
                 if self.lastmod and modtime and parse_datetime(modtime) < self.lastmod:
                     if __debug__: log(f'{eprintid} lastmod == {modtime} -- skipping')
                     skipped.append(r)
@@ -220,21 +231,19 @@ class MainBody(Thread):
                     continue
                 if __debug__: log(f'{eprintid} passed filter checks')
                 records.append(r)
-                if interrupted():
-                    break
             if len(skipped) > 0:
                 inform(f'Skipping {len(skipped)} records due to filtering.')
                 self._report(f'Skipping {len(skipped)} records due to filtering.')
             if len(records) == 0:
                 warn('Filtering left 0 records -- nothing left to do')
                 return
-            urls = [server.eprint_value(r, 'official_url') for r in records]
+            urls = [server.eprint_field_value(r, 'official_url') for r in records]
 
         # Next, construct "standard" URLs and check that they exist.  Do this
         # AFTER the steps above, because if we did any filtering, we may have
         # a much shorter list of records now than what we started with.
 
-        urls += self._standard_urls(server, records or wanted)
+        urls += self._eprints_basic_urls(server, records or wanted)
 
         # Clean up any None's and make sure we have something left to do.
         urls = list(filter(None, urls))
@@ -242,103 +251,68 @@ class MainBody(Thread):
             alert('List of URLs is empty -- nothing to archive')
             return
 
+        raise_for_interrupts()
+
         # If we get this far, we're doing it.
         inform(f'We have a total of {intcomma(len(urls))} {plural("URL", urls)}'
                + f' to send to {len(self.dest)} {plural("archive", self.dest)}.')
         self._send(urls)
+        inform('Done.')
 
 
-    def _standard_urls(self, server, records_list):
+    def _eprints_values(self, value_function, items_list, server, description):
 
         # Helper function: body of loop that is executed in all cases.
-        def loop(item_list, update_progress):
+        def record_values(items, update_progress):
+            results = []
+            for item in items:
+                if __debug__: log(f'getting data for {item}')
+                failure = None
+                try:
+                    data = value_function(item)
+                except NoContent as ex:
+                    failure = f'Server has no content for {item}'
+                except AuthenticationFailure as ex:
+                    failure = f'Authentication failure trying to get data for {item}'
+                except Exception as ex:
+                    raise ex
+                if failure:
+                    if self.errors_ok:
+                        warn(failure)
+                        continue
+                    else:
+                        warn(f'Unable to get data for {item}')
+                        raise CannotProceed(ExitCode.exception)
+                if data is not None:
+                    results.append(data)
+                elif not self.errors_ok:
+                    alert(f'Received no data for {item}')
+                    raise CannotProceed(ExitCode.exception)
+                update_progress()
+                raise_for_interrupts()
+            return results
+
+        server_name = f'[spring_green1]{server}[/]'
+        header  = f'[green3]Gathering {description} from {server_name} ...'
+        return self._gathered(record_values, items_list, header)
+
+
+    def _eprints_basic_urls(self, server, records_list):
+
+        # Helper function: body of loop that is executed in all cases.
+        def eprints_urls(item_list, update_progress):
             urls = []
             for r in item_list:
-                if __debug__: log(f'getting URLs for {server.eprint_value(r, "eprintid")}')
+                if __debug__: log(f'getting URLs for {server.eprint_field_value(r, "eprintid")}')
                 urls.append(server.eprint_id_url(r))
                 urls.append(server.eprint_page_url(r))
                 update_progress()
-                if interrupted():
-                    break
+                raise_for_interrupts()
             return urls
 
-        # Start of actual procedure.
-        num_items = len(records_list)
-        with Progress('[progress.description]{task.description}',
-                      BarColumn(bar_width = None),
-                      TextColumn('{task.completed}/' + intcomma(num_items)),
-                      refresh_per_second = 5) as progress:
-            # Wrap up the progress bar updater as a lambda that we can pass down.
-            server_name = f'[spring_green1]{server}[/]'
-            header  = f'[green3]Checking variant record URLs on {server_name} ...'
-            bar = progress.add_task(header, total = num_items)
-            update_progress = lambda: progress.update(bar, advance = 1)
-
-            # If the number of items is too small, don't bother going parallel.
-            if self.threads == 1 or num_items <= (self.threads * _PARALLEL_THRESHOLD):
-                return loop(records_list, update_progress)
-
-            num_threads = min(num_items, self.threads)
-            if __debug__: log(f'using {num_threads} threads to gather records')
-            with ThreadPoolExecutor(max_workers = num_threads) as e:
-                # Don't use TPE map() b/c it doesn't bubble up exceptions.
-                futures = []
-                for sublist in slice(records_list, num_threads):
-                    futures.append(e.submit(loop, sublist, update_progress))
-                # We get a list of lists, so flatten it before returning.
-                return flatten(f.result() for f in futures)
-
-
-    def _eprints(self, value_function, items, server, description):
-
-        # Helper function: body of loop that is executed in all cases.
-        def loop(item_list, update_progress):
-            results = []
-            for item in item_list:
-                if __debug__: log(f'getting data for {item}')
-                try:
-                    data = value_function(item)
-                    if data is not None:
-                        results.append(data)
-                    elif not self.errors_ok:
-                        warn(f'Received no data for {item}')
-                except Exception as ex:
-                    if isinstance(ex, NoContent) and self.errors_ok:
-                        warn(f'Server has no content for {item}')
-                    elif isinstance(ex, AuthenticationFailure) and self.errors_ok:
-                        warn(f'Authentication failure trying to get data for {item}')
-                    else:
-                        warn(f'Unable to get data for {item}')
-                update_progress()
-                if interrupted():
-                    break
-            return results
-
-        # Start of actual procedure.
-        num_items = len(items)
-        with Progress('[progress.description]{task.description}',
-                      BarColumn(bar_width = None),
-                      TextColumn('{task.completed}/' + intcomma(num_items)),
-                      refresh_per_second = 5) as progress:
-            # Wrap up the progress bar updater as a lambda that we can pass down.
-            server_name = f'[spring_green1]{server}[/]'
-            header  = f'[green3]Gathering {description} from {server_name} ...'
-            bar = progress.add_task(header, total = num_items)
-            update_progress = lambda: progress.update(bar, advance = 1)
-
-            # If the number of items is too small, don't bother going parallel.
-            if self.threads == 1 or num_items <= (self.threads * _PARALLEL_THRESHOLD):
-                return loop(items, update_progress)
-
-            num_threads = min(num_items, self.threads)
-            if __debug__: log(f'using {num_threads} threads to gather records')
-            with ThreadPoolExecutor(max_workers = num_threads) as e:
-                # Don't use TPE map() b/c it doesn't bubble up exceptions.
-                futures = []
-                for sublist in slice(items, num_threads):
-                    futures.append(e.submit(loop, sublist, update_progress))
-                # We get a list of lists, so flatten it before returning.
-                return flatten(f.result() for f in futures)
+        server_name = f'[spring_green1]{server}[/]'
+        header  = f'[green3]Checking variant record URLs on {server_name} ...'
+        return self._gathered(eprints_urls, records_list, header)
 
 
     def _send(self, urls_to_send):
@@ -365,8 +339,6 @@ class MainBody(Thread):
                 num_skipped += int(not added)
                 pbar.update(task, advance = 1, added = num_added, skipped = num_skipped)
                 self._report(f'{url} ➜ {dest.name}: {added_str}')
-                if interrupted():
-                    break
 
         # Start of actual procedure.
         bar  = BarColumn(bar_width = None)
@@ -378,12 +350,13 @@ class MainBody(Thread):
                 results = [send_to_service(service, pbar) for service in self.dest]
             else:
                 num_threads = min(num_dest, self.threads)
-                with ThreadPoolExecutor(max_workers = num_threads) as e:
-                    # Don't use TPE map() b/c it doesn't bubble up exceptions.
-                    futures = []
-                    for service in self.dest:
-                        futures.append(e.submit(send_to_service, service, pbar))
-                    results = [f.result() for f in futures]
+                if __debug__: log(f'using {num_threads} threads to send records')
+                self._executor = ThreadPoolExecutor(max_workers = num_threads)
+                self._futures = []
+                for service in self.dest:
+                    future = self._executor.submit(send_to_service, service, pbar)
+                    self._futures.append(future)
+                [f.result() for f in self._futures]
         self._report(f'Completed sending {num_urls} URLs.')
 
 
@@ -401,6 +374,32 @@ class MainBody(Thread):
         if self.report_file:
             with open(self.report_file, 'w' if overwrite else 'a') as f:
                 f.write(text + os.linesep)
+
+
+    def _gathered(self, loop, items_list, header):
+        num_items = len(items_list)
+        with Progress('[progress.description]{task.description}',
+                      BarColumn(bar_width = None),
+                      TextColumn('{task.completed}/' + intcomma(num_items)),
+                      refresh_per_second = 5) as progress:
+            # Wrap up the progress bar updater as a lambda that we pass down.
+            bar = progress.add_task(header, total = num_items)
+            update_progress = lambda: progress.update(bar, advance = 1)
+
+            # If the number of items is too small, don't bother going parallel.
+            if self.threads == 1 or num_items <= (self.threads * _PARALLEL_THRESHOLD):
+                return loop(items_list, update_progress)
+
+            # If we didn't return above, we're going parallel.
+            num_threads = min(num_items, self.threads)
+            if __debug__: log(f'using {num_threads} threads to gather records')
+            self._executor = ThreadPoolExecutor(max_workers = num_threads)
+            self._futures = []
+            for sublist in slice(items_list, num_threads):
+                future = self._executor.submit(loop, sublist, update_progress)
+                self._futures.append(future)
+            # We get a list of lists, so flatten it before returning.
+            return flatten(f.result() for f in self._futures)
 
 
 # Helper functions.
