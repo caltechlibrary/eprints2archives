@@ -110,15 +110,19 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 response = func(url, timeout = timeout, verify = False, **kwargs)
                 if __debug__: log(f'response received: {response}')
                 return response
+        except UserCancelled as ex:
+            if __debug__: log('received UserCancelled during network operation')
+            raise
         except Exception as ex:
             if ex.args and len(ex.args) > 0:
                 if isinstance(ex.args[0], urllib3.exceptions.MaxRetryError):
                     # No point in retrying if we get this.
-                    raise ex
+                    raise
             if not isinstance(ex, Eprints2ArchivesException):
                 # This is something unanticipated, and not a network-related
                 # exception.  Don't hide it behind a long retry sequence.
-                raise ex
+                if __debug__: log(f'received exception {str(ex)}')
+                raise
             # Problem might be transient.  Don't quit right away.
             failures += 1
             if __debug__: log(f'exception (failure #{failures}): {str(ex)}')
