@@ -305,8 +305,11 @@ class MainBody(Thread):
             urls = []
             for r in item_list:
                 if __debug__: log(f'getting URLs for {server.eprint_field_value(r, "eprintid")}')
-                urls.append(server.eprint_id_url(r))
-                urls.append(server.eprint_page_url(r))
+                try:
+                    urls.append(server.eprint_id_url(r))
+                    urls.append(server.eprint_page_url(r))
+                except (NoContent, AuthenticationFailure) as ex:
+                    if __debug__: log(f'got exception {str(ex)} for {r} -- moving on')
                 update_progress()
                 raise_for_interrupts()
             return urls
