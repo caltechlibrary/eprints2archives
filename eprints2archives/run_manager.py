@@ -68,5 +68,5 @@ class RunManager():
         if self._worker:
             if __debug__: log('calling stop() on worker')
             self._worker.stop()
-        if __debug__: log('stopping UI')
+            if __debug__: log('calling stop() on UI')
         self._ui.stop()
