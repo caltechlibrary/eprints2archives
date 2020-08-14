@@ -118,11 +118,6 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 if isinstance(ex.args[0], urllib3.exceptions.MaxRetryError):
                     # No point in retrying if we get this.
                     raise
-            if not isinstance(ex, Eprints2ArchivesException):
-                # This is something unanticipated, and not a network-related
-                # exception.  Don't hide it behind a long retry sequence.
-                if __debug__: log(f'received exception {str(ex)}')
-                raise
             # Problem might be transient.  Don't quit right away.
             failures += 1
             if __debug__: log(f'exception (failure #{failures}): {str(ex)}')
