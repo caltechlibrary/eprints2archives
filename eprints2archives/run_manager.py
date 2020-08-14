@@ -14,10 +14,13 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-from pubsub import pub
-from threading import Thread
+from   pubsub import pub
+import sys
+from   threading import Thread
 
 from .debug import set_debug, log
+from .exceptions import *
+from .interruptible_wait import interrupt
 
 
 # Class definitions.
@@ -46,6 +49,23 @@ class RunManager():
     def run(self, ui, worker):
         self._ui = ui
         self._worker = worker
+
+        # On Windows, in Python 3.6+, ^C in a terminal window does not stop
+        # execution (at least in my environment).  The following function
+        # creates a closure with the worker object so that stop() can be called.
+
+        if sys.platform == "win32":
+            if __debug__: log('installing ctrl_handler for Windows')
+
+            def ctrl_handler(event, *args):
+                if __debug__: log('Keyboard interrupt received')
+                from stopit import async_raise
+                interrupt()
+                async_raise(worker.ident, UserCancelled)
+                worker.stop()
+
+            import win32api
+            win32api.SetConsoleCtrlHandler(ctrl_handler, True)
 
         # The worker must be a daemon thread when using the GUI; for CLI, it
         # must not be a daemon thread or else the program exits immediately.
