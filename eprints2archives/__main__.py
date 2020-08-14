@@ -265,6 +265,7 @@ Command-line options summary
         exception = body.exception
     except (KeyboardInterrupt, UserCancelled) as ex:
         # In Python, the main thread (i.e., this one) is the one that gets ^C.
+        alert('Quit received; shutting down ...')
         interrupt()
         manager.stop()
         exception = sys.exc_info()
