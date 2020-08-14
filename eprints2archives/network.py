@@ -110,7 +110,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 response = func(url, timeout = timeout, verify = False, **kwargs)
                 if __debug__: log(f'response received: {response}')
                 return response
-        except UserCancelled as ex:
+        except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log('received UserCancelled during network operation')
             raise
         except Exception as ex:
@@ -133,7 +133,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
             if __debug__: log('pausing for 1s')
-            sleep(1)
+            sleep(0.5)
         if failures >= _MAX_FAILURES:
             # Pause with exponential back-off, reset failure count & try again.
             if retries < _MAX_RETRIES:
@@ -143,12 +143,14 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 if __debug__: log(f'pausing {pause}s due to consecutive failures')
                 wait(pause)
             else:
+                if __debug__: log('exceeded max failures and max retries')
                 raise error
     if interrupted():
         if __debug__: log('interrupted -- raising UserCancelled')
         raise UserCancelled('Network request has been interrupted')
     else:
-        return None
+        # In theory, we should never reach this point.  If we do, then:
+        raise InternalError('Unexpected code contingency in timed_request')
 
 
 def net(method, url, session = None, timeout = 20, handle_rate = True,

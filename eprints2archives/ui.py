@@ -351,7 +351,7 @@ class CLI(UIBase):
             if len(input_pswd) == 0:
                 input_pswd = pswd
             return input_user, input_pswd, False
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, UserCancelled):
             return user, pswd, True
 
 

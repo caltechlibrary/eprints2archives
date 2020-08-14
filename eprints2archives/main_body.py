@@ -91,6 +91,7 @@ class MainBody(Thread):
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(f'got {type(ex).__name__}')
             self._report('Interrupted')
+            self.exception = ex
         except CannotProceed as ex:
             if __debug__: log(f'got CannotProceed')
             self.exception = (CannotProceed, ex)
@@ -244,13 +245,14 @@ class MainBody(Thread):
 
         urls += self._eprints_basic_urls(server, records or wanted)
 
+        # Good time to check if the parent thread sent an interrupt.
+        raise_for_interrupts()
+
         # Clean up any None's and make sure we have something left to do.
         urls = list(filter(None, urls))
         if not urls:
             alert('List of URLs is empty -- nothing to archive')
             return
-
-        raise_for_interrupts()
 
         # If we get this far, we're doing it.
         inform(f'We have a total of {intcomma(len(urls))} {plural("URL", urls)}'
@@ -280,7 +282,7 @@ class MainBody(Thread):
                         warn(failure)
                         continue
                     else:
-                        warn(f'Unable to get data for {item}')
+                        alert(failure)
                         raise CannotProceed(ExitCode.exception)
                 if data is not None:
                     results.append(data)
@@ -338,6 +340,7 @@ class MainBody(Thread):
                 num_skipped += int(not added)
                 pbar.update(task, advance = 1, added = num_added, skipped = num_skipped)
                 self._report(f'{url} ➜ {dest.name}: {added_str}')
+                raise_for_interrupts()
 
         # Start of actual procedure.
         bar  = BarColumn(bar_width = None)
@@ -356,7 +359,7 @@ class MainBody(Thread):
                     future = self._executor.submit(send_to_service, service, pbar)
                     self._futures.append(future)
                 [f.result() for f in self._futures]
-        self._report(f'Completed sending {num_urls} URLs.')
+        self._report(f'Finished sending {num_urls} URLs.')
 
 
     def _status_acceptable(self, this_status):
