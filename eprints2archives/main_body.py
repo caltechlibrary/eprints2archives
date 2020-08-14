@@ -90,7 +90,6 @@ class MainBody(Thread):
             self._do_main_work()
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(f'got {type(ex).__name__}')
-            inform('User cancelled operation -- stopping.')
             self._report('Interrupted')
         except CannotProceed as ex:
             if __debug__: log(f'got CannotProceed')
