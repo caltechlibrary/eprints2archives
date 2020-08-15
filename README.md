@@ -1,4 +1,4 @@
-eprints2archives<img width="100px" align="right" src=".graphics/eprints2archives-icon.svg">
+eprints2archives<img width="12%" align="right" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-icon.png">
 ================
 
 A program that can obtain records from an EPrints server and send them to public web archiving services such as the [Internet Archive](https://archive.org/web/) and others.
@@ -219,6 +219,6 @@ This work was funded by the California Institute of Technology Library.
 <div align="center">
   <br>
   <a href="https://www.caltech.edu">
-    <img width="100" height="100" src=".graphics/caltech-round.svg">
+    <img width="100" height="100" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/caltech-round.png">
   </a>
 </div>
