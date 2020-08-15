@@ -33,7 +33,7 @@ Installation
 
 The instructions below assume you have a Python interpreter installed on your computer; if that's not the case, please first install Python and familiarize yourself with running Python programs on your system.
 
-On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install `eprints2archives` with [`pip`](https://pip.pypa.io/en/stable/installing/).  (If you don't have `pip` already installed on your computer, please seek out instructions for how to obtain it for your particular operating system.)  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
+On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install `eprints2archives` with [`pip`](https://pip.pypa.io/en/stable/installing/).  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
 ```
 python3 -m pip install eprints2archives --upgrade
 ```
@@ -204,6 +204,7 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [requests](http://docs.python-requests.org) &ndash; an HTTP library for Python
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
+* [tzlocal](https://github.com/regebro/tzlocal) &ndash; determine your local time zone
 * [urllib3](https://urllib3.readthedocs.io/en/latest/) &ndash; HTTP client library for Python
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python
 
