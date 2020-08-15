@@ -190,20 +190,29 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
         arg0 = ex.args[0]
         if isinstance(arg0, urllib3.exceptions.MaxRetryError):
             if __debug__: log(str(arg0))
-            original = unwrapped_urllib3_exception(arg0)
-            if __debug__: log('returning NetworkFailure')
-            if isinstance(original, str) and 'unreacheable' in original:
-                return (req, NetworkFailure(addurl('Unable to connect to server')))
-            elif network_available():
-                return (req, NetworkFailure(addurl('Unable to resolve host')))
+            # This can be a transient error due to various causes.  Retry once.
+            if recursing == 0:
+                wait(1)
+                return net(method, url, session, timeout, handle_rate,
+                           polling, recursing + 1, **kwargs)
             else:
-                return (req, NetworkFailure(addurl('Lost network connection with server')))
+                # We've seen maxretry before or we're recursing due to some
+                # other failure.  Time to bail.
+                original = unwrapped_urllib3_exception(arg0)
+                if __debug__: log('returning NetworkFailure')
+                if isinstance(original, str) and 'unreacheable' in original:
+                    return (req, NetworkFailure(addurl('Unable to connect to server')))
+                elif network_available():
+                    return (req, NetworkFailure(addurl('Unable to resolve host')))
+                else:
+                    return (req, NetworkFailure(addurl('Lost connection with server')))
         elif (isinstance(arg0, urllib3.exceptions.ProtocolError)
               and arg0.args and isinstance(args0.args[1], ConnectionResetError)):
             if __debug__: log('net() got ConnectionResetError; will recurse')
             sleep(1)                    # Sleep a short time and try again.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
-            return net(method, url, session, timeout, polling, recursing + 1, **kwargs)
+            return net(method, url, session, timeout, polling, handle_rate,
+                       recursing + 1, **kwargs)
         else:
             if __debug__: log('returning NetworkFailure')
             return (req, NetworkFailure(str(ex)))
