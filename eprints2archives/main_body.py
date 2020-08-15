@@ -23,7 +23,6 @@ from   rich.progress import Progress, BarColumn, TextColumn
 import sys
 from   threading import Thread
 import time
-from   timeit import default_timer as timer
 import validators.url
 
 from .data_helpers import DATE_FORMAT, slice, expand_range, plural
