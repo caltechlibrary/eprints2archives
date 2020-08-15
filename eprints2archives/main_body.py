@@ -301,7 +301,7 @@ class MainBody(Thread):
         def eprints_urls(item_list, update_progress):
             urls = []
             for r in item_list:
-                if __debug__: log(f'getting URLs for {server.eprint_field_value(r, "eprintid")}')
+                if __debug__: log(f'getting URLs for {r}')
                 try:
                     urls.append(server.eprint_id_url(r))
                     urls.append(server.eprint_page_url(r))
