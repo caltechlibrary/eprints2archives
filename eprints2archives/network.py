@@ -19,7 +19,6 @@ from   http.client import responses as http_responses
 from   os import stat
 import requests
 from   requests.packages.urllib3.exceptions import InsecureRequestWarning
-from   time import sleep
 import socket
 import ssl
 import urllib
@@ -128,7 +127,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
             if __debug__: log('pausing for 1 s')
-            sleep(0.5)
+            wait(0.5)
         if failures >= _MAX_FAILURES:
             # Pause with exponential back-off, reset failure count & try again.
             if retries < _MAX_RETRIES:
@@ -209,7 +208,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
         elif (isinstance(arg0, urllib3.exceptions.ProtocolError)
               and arg0.args and isinstance(args0.args[1], ConnectionResetError)):
             if __debug__: log('net() got ConnectionResetError; will recurse')
-            sleep(1)                    # Sleep a short time and try again.
+            wait(1)                     # Sleep a short time and try again.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
             return net(method, url, session, timeout, polling, handle_rate,
                        recursing + 1, **kwargs)
