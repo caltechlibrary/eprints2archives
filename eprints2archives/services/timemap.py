@@ -40,7 +40,6 @@ def timemap_as_dict(timemap_text, skip_errors = False):
     '''
 
     def process_local_dict(local_dict, working_dict):
-
         first = False
         last = False
 
@@ -197,3 +196,13 @@ def timemap_as_dict(timemap_text, skip_errors = False):
     process_local_dict(local_dict, dict_timemap)
 
     return dict_timemap
+
+
+def timemap_mementos(timemap_dict):
+    '''Take a timemap as dict and return the list of mementos therein.'''
+    if not isinstance(timemap_dict, dict):
+        raise ValueError(f'Expected a dict but got {type(timemap_dict)}.')
+    if 'mementos' in timemap_dict and 'list' in timemap_dict['mementos']:
+        return timemap_dict['mementos']['list']
+    else:
+        return []
