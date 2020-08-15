@@ -172,7 +172,7 @@ class MainBody(Thread):
         '''Performs the core work of this program.'''
         server = EPrintServer(self.api_url, self.user, self.password)
 
-        inform(f'Getting full EPrints index from [green1]{server}[/] ...')
+        inform(f'Getting full EPrints index from [sea_green2]{server}[/] ...')
         available = server.index()
         if not available:
             raise NoContent(f'Received empty list from {server}.')
@@ -290,7 +290,7 @@ class MainBody(Thread):
                 raise_for_interrupts()
             return results
 
-        server_name = f'[spring_green1]{server}[/]'
+        server_name = f'[sea_green2]{server}[/]'
         header  = f'[green3]Gathering {description} from {server_name} ...'
         return self._gathered(record_values, items_list, header)
 
@@ -311,7 +311,7 @@ class MainBody(Thread):
                 raise_for_interrupts()
             return urls
 
-        server_name = f'[spring_green1]{server}[/]'
+        server_name = f'[sea_green2]{server}[/]'
         header  = f'[green3]Checking variant record URLs on {server_name} ...'
         return self._gathered(eprints_urls, records_list, header)
 
