@@ -65,7 +65,7 @@ class InternetArchive(Service):
             added = self._archive(url, notify)
             return (added, -1)
 
-        existing = self._saved_copies(url)
+        existing = self._saved_copies(url, notify)
         if existing:
             if 'mementos' in existing and 'list' in existing['mementos']:
                 num_existing = len(existing['mementos']['list'])
@@ -85,17 +85,23 @@ class InternetArchive(Service):
         return str(url).strip().replace(' ', '_')
 
 
-    def _saved_copies(self, url):
+    def _saved_copies(self, url, notify):
         '''Returns a timemap, in the form of a dict.'''
         if __debug__: log(f'asking {self.name} for info about {url}')
 
         action_url = 'https://web.archive.org/web/timemap/link/' + self._uniform(url)
-        (response, error) = net('get', action_url)
+        (response, error) = net('get', action_url, handle_rate = False)
         if not error and response:
             if __debug__: log('converting TimeMap to dict')
             return timemap_as_dict(response.text, skip_errors = True)
         elif isinstance(error, NoContent):
             return {}
+        elif isinstance(error, RateLimitExceeded):
+            if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
+            notify(Status.PAUSED_RATE)
+            wait(_RATE_LIMIT_SLEEP)
+            notify(Status.RUNNING)
+            return self._saved_copies(url, notify)
         else:
             raise error
 
@@ -127,7 +133,7 @@ class InternetArchive(Service):
             if retry == 1:
                 # Might have been a transient server-unavailable type of error.
                 if __debug__: log(f'retrying once without pause')
-                return self._archive(url, retry)
+                return self._archive(url, notify, retry)
             elif retries_left > 0:
                 # Subtract 1 b/c we try without pause once, before we land here.
                 if __debug__: log(f'pausing due to multiple retries')
@@ -136,7 +142,7 @@ class InternetArchive(Service):
                 notify(Status.PAUSED_ERROR)
                 wait(sleeptime)
                 notify(Status.RUNNING)
-                return self._archive(url, retry)
+                return self._archive(url, notify, retry)
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')
                 raise error
