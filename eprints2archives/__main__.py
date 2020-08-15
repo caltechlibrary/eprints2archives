@@ -27,7 +27,7 @@ from   .debug import set_debug, log
 from   .exceptions import *
 from   .exit_codes import ExitCode
 from   .files import readable
-from   .interruptible_wait import interrupt, interrupted
+from   .interruptions import interrupt, interrupted
 from   .main_body import MainBody
 from   .network import disable_ssl_cert_check
 from   .run_manager import RunManager

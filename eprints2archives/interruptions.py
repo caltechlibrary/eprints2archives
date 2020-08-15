@@ -41,7 +41,7 @@ def wait(duration):
     This is a replacement for sleep(duration).  If interrupted, this function
     raises the exception UserCancelled.
     '''
-    if __debug__: log(f'waiting for {duration}s')
+    if __debug__: log(f'waiting for {duration} s')
     __waiter.wait(duration)
     if interrupted():
         if __debug__: log(f'raising UserCancelled')

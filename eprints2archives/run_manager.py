@@ -20,7 +20,7 @@ from   threading import Thread
 
 from .debug import set_debug, log
 from .exceptions import *
-from .interruptible_wait import interrupt
+from .interruptions import interrupt
 
 
 # Class definitions.

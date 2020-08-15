@@ -32,7 +32,7 @@ from .debug import log
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
-from .interruptible_wait import interrupted, raise_for_interrupts
+from .interruptions import interrupted, raise_for_interrupts
 from .files import writable
 from .network import network_available, hostname, netloc
 from .services import service_names, service_interfaces, service_by_name

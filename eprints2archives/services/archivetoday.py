@@ -36,6 +36,7 @@ from   urllib.parse import quote_plus, urlencode
 
 from ..debug import log
 from ..exceptions import *
+from ..interruptions import interrupted, wait
 from ..network import net, hostname
 from ..ui import warn
 
@@ -119,16 +120,22 @@ class ArchiveToday(Service):
     name = 'Archive.today'
     color = 'yellow'
 
+    _host = None                        # archive.il or archive.is or ...
+    _sid  = None                        # current submit id value
+
     # Public methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def save(self, url, notify, force = False):
         '''Ask the service to save "url".'''
+        if not self._host:
+            self._find_host()
+
         if force:
             # If we're forcing a send, we don't care how many copies exist.
             added = self._archive(url, notify)
             return (added, -1)
 
-        existing = self._saved_copies(url)
+        existing = self._saved_copies(url, notify)
         if existing:
             if 'mementos' in existing and 'list' in existing['mementos']:
                 num_existing = len(existing['mementos']['list'])
@@ -148,24 +155,55 @@ class ArchiveToday(Service):
         return str(url).strip().replace(' ', '_')
 
 
-    def _saved_copies(self, url):
+    def _saved_copies(self, url, notify):
         '''Returns a timemap, in the form of a dict.'''
 
-        session = requests.Session()
         headers = {"User-Agent": _USER_AGENT}
-        action_url = 'https://archive.today/timemap/' + self._uniform(url)
-        (response, error) = net('get', action_url, session = session, headers = headers)
+        action_url = f'https://{self._host}/timemap/' + self._uniform(url)
+        (response, error) = net('get', action_url, headers = headers)
         if not error and response:
             if __debug__: log('converting TimeMap to dict')
             return timemap_as_dict(response.text, skip_errors = True)
         elif isinstance(error, NoContent):
             return {}
+        elif isinstance(error, ServiceFailure) and response:
+            # Archive.today doesn't return code 429 when you hit the rate limit
+            # and instead throws code 503.  See author's posting of 2020-08-04:
+            # https://blog.archive.today/post/625519838592417792
+            if response.status_code == 503:
+                if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
+                notify(Status.PAUSED_RATE)
+                wait(_RATE_LIMIT_SLEEP)
+                notify(Status.RUNNING)
+                return self._saved_copies(url)
         else:
             raise error
 
 
-    def _archive(self, url, notify, retry = 0):
+    def _find_host(self):
+        headers = {"User-Agent": _USER_AGENT}
+        if __debug__: log(f'looking for active {self.name} host')
+        for host in _HOSTS:
+            # headers['host'] = host
+            test_url = f'https://{host}/'
+            (response, error) = net('get', test_url, headers = headers)
+            if not error:
+                if __debug__: log(f'Archive.Today host is currently {host}')
+                self._host = host
+                break
+            else:
+                raise error
+        if not self._host:
+            raise ServiceFailure(f'None of the {self.name} servers are responding')
+        try:
+            html = str(response.content)
+            # Gnarly line of code from ArchiveNow.
+            self._sid = html.split('name="submitid', 1)[1].split('value="', 1)[1].split('"', 1)[0]
+        except:
+            raise InternalError(f'Unable to parse {self.name} page')
 
+
+    def _archive(self, url, notify, retry = 0):
         # Basic idea and algorithm taken from ArchiveNow.  We iterate over the
         # various domain names that Archive.today uses, because some of them
         # stop responding and others start responding, and we never know which
@@ -173,36 +211,15 @@ class ArchiveToday(Service):
         # you get an error about too many redirects.  (Not sure if that's
         # deliberate on their part or just a side-effect of what they're doing
         # with their hosts.
+        if __debug__: log(f'will ask {self.name} to save {url}')
 
-        session = requests.Session()
+        action_url = f'https://{self._host}/submit/'
         headers = {"User-Agent": _USER_AGENT}
-        archive_host = None
-        for host in _HOSTS:
-            # headers['host'] = host
-            test_url = f'https://{host}/'
-            (response, error) = net('get', test_url, session = session, headers = headers)
-            if not error:
-                archive_host = host
-                break
-            else:
-                raise error
-        if not archive_host:
-            raise ServiceFailure(f'None of the {self.name} servers are responding')
-            return False
-
-        try:
-            html = str(response.content)
-            # Gnarly line of code from ArchiveNow.
-            sid = html.split('name="submitid', 1)[1].split('value="', 1)[1].split('"', 1)[0]
-        except:
-            raise InternalError(f'Unable to parse {self.name} page')
-
-        action_url = f'https://{archive_host}/submit/'
-        headers['host'] = archive_host
+        headers['host'] = self._host
         # The order of the content of the post body matters to Archive.today.
-        payload = OrderedDict({'submitid': sid, 'url': url})
-        (response, error) = net('post', action_url, session = session,
-                                handle_rate = False, headers = headers, data = payload)
+        payload = OrderedDict({'submitid': self._sid, 'url': url})
+        (response, error) = net('post', action_url, handle_rate = False,
+                                headers = headers, data = payload)
 
         if not error:
             if 'Refresh' in response.headers:
@@ -223,18 +240,14 @@ class ArchiveToday(Service):
                         if __debug__: log(f'{self.name} saved URL as {saved_url}')
                         return True
             raise InternalError(f'{self.name} returned unexpected response')
-        elif not response:
-            # User cancellation can cause this.
-            if __debug__: log(f'got {error} from net() and no response -- raising it')
-            raise error
         else:
             # Archive.today doesn't return code 429 when you hit the rate limit
             # and instead throws code 503.  See author's posting of 2020-08-04:
             # https://blog.archive.today/post/625519838592417792
-            if response.status_code == 503:
+            if isinstance(error, ServiceFailure):
                 if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
                 notify(Status.PAUSED_RATE)
-                sleep(_RATE_LIMIT_SLEEP)
+                wait(_RATE_LIMIT_SLEEP)
                 notify(Status.RUNNING)
                 return self._archive(url, notify)
 
@@ -248,7 +261,7 @@ class ArchiveToday(Service):
                 sleeptime = _RETRY_SLEEP * pow(retry, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
                 notify(Status.PAUSED_ERROR)
-                sleep(sleeptime)
+                wait(sleeptime)
                 notify(Status.RUNNING)
                 return self._archive(url, notify, retry)
             else:

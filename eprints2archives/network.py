@@ -29,7 +29,7 @@ import warnings
 
 from .debug import log
 from .exceptions import *
-from .interruptible_wait import wait, interrupted
+from .interruptions import wait, interrupted
 
 
 # Constants.
@@ -127,7 +127,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
             if not error:
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
-            if __debug__: log('pausing for 1s')
+            if __debug__: log('pausing for 1 s')
             sleep(0.5)
         if failures >= _MAX_FAILURES:
             # Pause with exponential back-off, reset failure count & try again.
@@ -239,7 +239,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     elif code == 429:
         if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
-            if __debug__: log(f'rate limit hit -- sleeping {pause}')
+            if __debug__: log(f'rate limit hit -- sleeping {pause} s')
             wait(pause)                   # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(f'doing recursive call #{recursing + 1}')
             return net(method, url, session = session, timeout = timeout,

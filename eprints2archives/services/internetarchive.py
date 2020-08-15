@@ -20,7 +20,7 @@ from   time import sleep
 
 from ..debug import log
 from ..exceptions import *
-from ..interruptible_wait import wait
+from ..interruptions import wait
 from ..network import net
 from ..ui import warn
 
