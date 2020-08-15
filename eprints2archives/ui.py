@@ -57,9 +57,13 @@ file "LICENSE" for more information.
 
 import getpass
 from   queue import Queue
+from   rich import box
+from   rich.box import HEAVY
 from   rich.console import Console
+from   rich.panel import Panel
 from   rich.style import Style
 from   rich.theme import Theme
+import shutil
 import sys
 
 from .debug import log
@@ -256,16 +260,15 @@ class CLI(UIBase):
         self._console = Console(theme = _CLI_THEME,
                                 color_system = "auto" if use_color else None)
 
-        # Note that this welcome message will be queued up using our normal
-        # print queueing mechanism (part of self.inform(...)).
-        num_dashes = 19 + len(self._name) + len(self._subtitle)
-        if self._use_color:
-            name = f'[bold chartreuse1]{self._name}[/]'
-        else:
-            name = self._name
-        self.inform('┏' + '━'*num_dashes + '┓')
-        self.inform('┃   Welcome to {}: {}   ┃', name, self._subtitle)
-        self.inform('┗' + '━'*num_dashes + '┛')
+        # We need the plain_text version in any case, to calculate length.
+        plain_text = f'Welcome to {name}: {subtitle}'
+        fancy_text = f'Welcome to [bold chartreuse1]{name}[/]: {subtitle}'
+        text = fancy_text if self._use_color else plain_text
+        terminal_width = shutil.get_terminal_size().columns or 80
+        padding = (terminal_width - len(plain_text) - 2) // 2
+        # Queueing up this message now will make it the 1st thing printed.
+        self._print_or_queue(Panel(text, style = 'green3', box = HEAVY,
+                                   padding = (0, padding)), style = 'green3')
 
 
     def start(self):
