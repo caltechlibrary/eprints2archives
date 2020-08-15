@@ -1,5 +1,5 @@
 '''
-interruptions.py: EPrints-specific utilities
+interruptions.py: provide an interruptible wait(...) and related utilities.
 
 This module includes wait(...), a replacement for sleep(...) that is
 interruptible and works with multiple threads.  It also provides methods to
