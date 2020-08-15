@@ -41,7 +41,7 @@ from ..network import net, hostname
 from ..ui import warn
 
 from .base import Service
-from .timemap import timemap_as_dict
+from .timemap import timemap_as_dict, timemap_mementos
 from .upload_status import ServiceStatus
 
 
@@ -135,14 +135,11 @@ class ArchiveToday(Service):
             added = self._archive(url, notify)
             return (added, -1)
 
-        existing = self._saved_copies(url, notify)
-        if existing:
-            if 'mementos' in existing and 'list' in existing['mementos']:
-                num_existing = len(existing['mementos']['list'])
-                if __debug__: log(f'there are {num_existing} mementos for {url}')
-                return (False, num_existing)
-            else:
-                raise InternalError(f'Unexpected TimeMap format from {self.name}')
+        timemap = self._timemap_for_url(url, notify)
+        if timemap:
+            mementos = timemap_mementos(timemap)
+            if __debug__: log(f'there are {len(mementos)} mementos for {url}')
+            return (False, len(mementos))
         else:
             if __debug__: log(f'{self.name} returned no mementos for {url}')
             added = self._archive(url, notify)
@@ -155,7 +152,7 @@ class ArchiveToday(Service):
         return str(url).strip().replace(' ', '_')
 
 
-    def _saved_copies(self, url, notify):
+    def _timemap_for_url(self, url, notify):
         '''Returns a timemap, in the form of a dict.'''
 
         headers = {"User-Agent": _USER_AGENT}
@@ -175,7 +172,7 @@ class ArchiveToday(Service):
                 notify(ServiceStatus.PAUSED_RATE_LIMIT)
                 wait(_RATE_LIMIT_SLEEP)
                 notify(ServiceStatus.RUNNING)
-                return self._saved_copies(url)
+                return self._timemap_for_url(url)
         else:
             raise error
 
