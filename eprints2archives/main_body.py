@@ -184,7 +184,7 @@ class MainBody(Thread):
         # If the user wants specific records, check which ones actually exist.
         if self.wanted_list:
             missing = list(set(self.wanted_list) - set(available))
-            if missing and not self.errors_ok:
+            if missing and self.quit_on_error:
                 raise ValueError(f'{intcomma(len(missing))} of the requested'
                                  + ' records do not exist on the server:'
                                  + f' {", ".join(sorted(missing, key = int))}.')
@@ -278,15 +278,15 @@ class MainBody(Thread):
                 except Exception as ex:
                     raise ex
                 if failure:
-                    if self.errors_ok:
-                        warn(failure)
-                        continue
-                    else:
+                    if self.quit_on_error:
                         alert(failure)
                         raise CannotProceed(ExitCode.exception)
-                if data is not None:
+                    else:
+                        warn(failure)
+                        continue
+                if data:
                     results.append(data)
-                elif not self.errors_ok:
+                elif self.quit_on_error:
                     alert(f'Received no data for {item}')
                     raise CannotProceed(ExitCode.exception)
                 update_progress()

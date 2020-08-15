@@ -44,14 +44,14 @@ disable_ssl_cert_check()
 @plac.annotations(
     api_url    = ('the URL for the REST API of the EPrints server',        'option', 'a'),
     dest       = ('send to destination service "D" (default: "all")',      'option', 'd'),
+    error_out  = ('stop if encounter missing records or similar problems', 'flag',   'e'),
     force      = ('ask services to archive records even if already there', 'flag',   'f'),
     id_list    = ('list of EPrint record identifiers (can be a file)',     'option', 'i'),
-    keep_going = ('do not stop if missing EPrints records encountered',    'flag',   'k'),
     lastmod    = ('only get EPrints records modified after given date',    'option', 'l'),
     quiet      = ('do not print informational messages while working',     'flag',   'q'),
     user       = ('EPrints server user login name "U"',                    'option', 'u'),
     password   = ('EPrints server user password "P"',                      'option', 'p'),
-    report     = ('save a report of what was saved to file "R"',           'option', 'r'),
+    report     = ('save a report to file "R"',                             'option', 'r'),
     status     = ('only get records whose status is in the list "S"',      'option', 's'),
     threads    = ('number of threads to use (default: #cores/2)',          'option', 't'),
     no_color   = ('do not color-code terminal output',                     'flag',   'C'),
@@ -61,8 +61,8 @@ disable_ssl_cert_check()
     debug      = ('write detailed trace to "OUT" ("-" means console)',     'option', '@'),
 )
 
-def main(api_url = 'A', dest = 'D', force = False, id_list = 'I',
-         keep_going = False, lastmod = 'L', quiet = False, user = 'U',
+def main(api_url = 'A', dest = 'D', error_out = False, force = False,
+         id_list = 'I', lastmod = 'L', quiet = False, user = 'U',
          password = 'P', report = 'R', status = 'S', threads = 'T',
          no_color = False, no_keyring = False,
          services = False, version = False, debug = 'OUT'):
@@ -109,8 +109,7 @@ server. The value of -i can be one or more integers separated by commas
 (e.g., -i 54602,54604), or a range of numbers separated by a dash (e.g.,
 -i 1-100, which is interpreted as the list of numbers 1, 2, ..., 100 inclusive),
 or some combination thereof. The value of the option -i can also be a file, in
-which case, the file is read to get a list of identifiers. Note that if you use
-the -i option, you may also want to use the -k option described below.
+which case, the file is read to get a list of identifiers.
 
 If the -l option (or /l on Windows) is given, the records will be additionally
 filtered to return only those whose last-modified date/time stamp is no older
@@ -136,18 +135,13 @@ value is *not* among those given. Examples:
 Both lastmod and status filering are done after the -i argument is processed.
 
 By default, if an error occurs when requesting a record from the EPrints
-server, eprints2archives will stop execution. Common causes of errors include
-missing records implied by the arguments to -i, missing files associated with
-a given record, and files inaccessible due to permissions errors. If the
-option -k (or /k on Windows) is given, eprints2archives will attempt to keep
-going upon encountering missing records, or missing files within records, or
-similar errors. Option -k is particularly useful when giving a range of numbers
-with the -i option, as it is common for EPrints records to be updated or deleted
-and gaps to be left in the numbering. (Running without -i will skip over gaps
-in the numbering because the available record numbers will be obtained directly
-from the server, which is unlike the user providing a list of record numbers
-that may or may not exist on the server. However, even without -i, errors may
-still result from permissions errors or other causes.)
+server, eprints2archives will keep going and not stop execution. Common causes
+of errors include missing records implied by the arguments to -i, missing files
+associated with a given record, and files inaccessible due to permissions
+errors. If the option -e (or /e on Windows) is given, eprints2archives will
+instead stop upon encountering a missing record, or missing file within a
+record, or similar errors. The default is to merely issue warnings when missing
+records are encountered because this is less frustrating for most use-cases.
 
 Specifying where to send records
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -257,7 +251,7 @@ Command-line options summary
                         dest    = 'all' if dest == 'D' else dest,
                         threads = max(1, cpu_count()//2 if threads == 'T' else int(threads)),
                         auth_handler = auth,
-                        errors_ok = keep_going,
+                        quit_on_error = error_out,
                         force = force,
                         report_file = None if report == 'R' else report)
         manager = RunManager()

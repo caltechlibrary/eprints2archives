@@ -58,7 +58,7 @@ Accessing some EPrints servers via the API requires supplying a user login and p
 
 ### How the list of records is determined
 
-The EPrints records to be sent to the web archiving services will be limited to the records indicated by the option `-i` (or `/i` on Windows). If no `-i` option is given, this program will use all the records available at the given EPrints server. The value of `-i` can be one or more integers separated by commas (e.g., `-i 54602,54604`), or a range of numbers separated by a dash (e.g., `-i 1-100`, which is interpreted as the list of numbers 1, 2, ..., 100 inclusive), or some combination thereof. The value of the option `-i` can also be a file, in which case, the file is read to get a list of identifiers. Note that if you use the `-i` option, you may also want to use the `-k` option described below.
+The EPrints records to be sent to the web archiving services will be limited to the records indicated by the option `-i` (or `/i` on Windows). If no `-i` option is given, this program will use all the records available at the given EPrints server. The value of `-i` can be one or more integers separated by commas (e.g., `-i 54602,54604`), or a range of numbers separated by a dash (e.g., `-i 1-100`, which is interpreted as the list of numbers 1, 2, ..., 100 inclusive), or some combination thereof. The value of the option `-i` can also be a file, in which case, the file is read to get a list of identifiers.
 
 If the `-l` option (or `/l` on Windows) is given, the records will be additionally filtered to return only those whose last-modified date/time stamp is no older than the given date/time description.  Valid descriptors are those accepted by the Python [dateparser](https://pypi.org/project/dateparser/) library.  Make sure to enclose descriptions within single or double quotes.  Examples:
 
@@ -78,7 +78,7 @@ eprints2archives -s ^inbox,buffer,deletion -a ...
 
 Both `--lastmod` and `--status` filering are done after the `-i` argument is processed.
 
-By default, if an error occurs when requesting a record from the EPrints server, `eprints2archives` will stop execution.  Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors.  If the option `-k` (or `/k` on Windows) is given, `eprints2archives` will attempt to keep going upon encountering missing records, or missing files within records, or similar errors.  Option `-k` is particularly useful when giving a range of numbers with the `-i` option, as it is common for EPrints records to be updated or deleted and gaps to be left in the numbering.  (Running _without_ `-i` will skip over gaps in the numbering because the available record numbers will be obtained directly from the server, which is unlike the case when a user provides a list of record numbers that may or may not exist on the server.  However, even without `-i`, errors may still result from permissions errors or other causes.)
+By default, if an error occurs when requesting a record from the EPrints server, `eprints2archives` will keep going and not stop execution. Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors. If the option `-e` (or `/e` on Windows) is given, `eprints2archives` will instead stop upon encountering a missing record, or missing file within a record, or similar errors. The default is to merely issue warnings when missing records are encountered because this is less frustrating for most use-cases.
 
 
 ### How URLs are constructed
@@ -120,22 +120,22 @@ If given the `-V` option (`/V` on Windows), this program will print the version 
 The following table summarizes all the command line options available. (Note: on Windows computers, `/` must be used as the prefix character instead of `-`):
 
 | Short&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   | Long&nbsp;form&nbsp;opt&nbsp;&nbsp; | Meaning | Default |  |
-|---------|-------------------|----------------------|---------|---|
-| `-a`_A_ | `--api-url`_A_    | Use _A_ as the server's REST API URL | | ⚑ |
-| `-d`_D_ | `--dest`_D_        | Send to destination service(s) _D_ | Send to all | |
-| `-f`    | `--force`          | Send each record even if copy already exists | Skip already-archived records | |
-| `-i`_I_ | `--id-list`_I_    | Records to get (can be a file name) | Fetch all records from the server | |
-| `-k`    | `--keep-going`    | Don't count missing records as an error | Stop if encounter missing record | |
-| `-l`_L_ | `--lastmod`_L_    | Filter by last-modified date/time | Don't filter by date/time | |
-| `-q`    | `--quiet`         | Don't print info messages while working | Be chatty while working | |
-| `-s`_S_ | `--status`_S_     | Filter by status(s) in _S_ | Don't filter by status | |
-| `-u`_U_ | `--user`_U_       | User name for EPrints server login | No user name |
-| `-p`_P_ | `--password`_U_   | Password for EPrints proxy login | No password |
-| `-C`    | `--no-color`      | Don't color-code the output | Use colors in the terminal output | |
-| `-K`    | `--no-keyring`    | Don't use a keyring/keychain | Store login info in keyring | |
-| `-S`    | `--services`      | Print list of known archiving services and exit | Do other actions instead |
-| `-V`    | `--version`       | Print program version info and exit | Do other actions instead | |
-| `-@`_OUT_ | `--debug`_OUT_    | Debugging mode; write trace to _OUT_ | Normal mode | ⚐ |
+|---------- |-------------------|--------------------------------------|---------|---|
+| `-a`_A_   | `--api-url`_A_   | Use _A_ as the server's REST API URL | | ⚑ |
+| `-d`_D_   | `--dest`_D_      | Send to destination service(s) _D_ | Send to all | |
+| `-e`      | `--error-out`   | Stop if encounter missing records | Keep going | |
+| `-f`      | `--force`        | Send every record even if copy exists | Skip already-archived records | |
+| `-i`_I_   | `--id-list`_I_   | Records to get (can be a file name) | Fetch all records from the server | |
+| `-l`_L_   | `--lastmod`_L_   | Filter by last-modified date/time | Don't filter by date/time | |
+| `-q`      | `--quiet`        | Don't print info messages while working | Be chatty while working | |
+| `-s`_S_   | `--status`_S_    | Filter by status(s) in _S_ | Don't filter by status | |
+| `-u`_U_   | `--user`_U_      | User name for EPrints server login | No user name |
+| `-p`_P_   | `--password`_U_  | Password for EPrints proxy login | No password |
+| `-C`      | `--no-color`     | Don't color-code the output | Color the console messages  | |
+| `-K`      | `--no-keyring`   | Don't use a keyring/keychain | Store login info in keyring | |
+| `-S`      | `--services`     | Print list of known services and exit | Do other actions instead |
+| `-V`      | `--version`      | Print program version info and exit | Do other actions instead | |
+| `-@`_OUT_ | `--debug`_OUT_   | Debugging mode; write trace to _OUT_ | Normal mode | ⚐ |
 
  ⚑ &nbsp; Required argument.<br>
 ⚐ &nbsp; To write to the console, use the character `-` as the value of _OUT_; otherwise, _OUT_ must be the name of a file where the output should be written.
@@ -200,6 +200,7 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [lxml](https://lxml.de) &ndash; an XML parsing library for Python
 * [plac](http://micheles.github.io/plac/) &ndash; a command line argument parser
 * [pydash]() &ndash; kitchen sink of Python utility libraries for doing “stuff” 
+* [pypubsub](https://github.com/schollii/pypubsub) &ndash; a publish-and-subscribe message-passing library for Python
 * [requests](http://docs.python-requests.org) &ndash; an HTTP library for Python
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
