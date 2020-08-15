@@ -207,7 +207,11 @@ class EPrintServer():
 
         if isinstance(id_or_record, (str, int)):
             id_or_record = str(id_or_record)
-            if id_or_record in self._records:
+            if field == 'eprintid':
+                # Data lookups are unnecessary since we have the id already.
+                # This case is here to provide a uniform calling experience.
+                return id_or_record
+            elif id_or_record in self._records:
                 # We have a copy of the XML for this one.  Use it.
                 if __debug__: log(f'using cached copy of record {id_or_record}')
                 xml = self._records[id_or_record]
@@ -215,7 +219,17 @@ class EPrintServer():
                 # Contact the server.
                 if __debug__: log(f'{id_or_record} not cached -- asking server')
                 field_url = f'/eprint/{id_or_record}/{field}.txt'
-                response = self._get(field_url)
+                try:
+                    response = self._get(field_url)
+                except NoContent as ex:
+                    if __debug__: log(f'No content for {field} in {id_or_record}')
+                    return None
+                except AuthenticationFailure as ex:
+                    if __debug__: log(f'Auth failure for {field} in {id_or_record}')
+                    return None
+                except Exception as ex:
+                    if __debug__: log(f'{str(ex)} for {field} in {id_or_record}')
+                    raise
                 if __debug__: log(f'got response: {response.text}')
                 return response.text if response and response.text != '' else None
         else:
