@@ -35,10 +35,8 @@ from .exit_codes import ExitCode
 from .interruptions import interrupted, raise_for_interrupts
 from .files import writable
 from .network import network_available, hostname, netloc
-from .services import service_names, service_interfaces, service_by_name
+from .services import ServiceStatus, service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
-
-from .services.upload_status import Status
 
 
 # Constants.
@@ -331,7 +329,7 @@ class MainBody(Thread):
         def send_to_service(dest, pbar):
             num_added = 0
             num_skipped = 0
-            description = activity(dest, Status.RUNNING)
+            description = activity(dest, ServiceStatus.RUNNING)
             task = pbar.add_task(description, total = num_urls, added = 0, skipped = 0)
             notify = lambda s: pbar.update(task, description = activity(dest, s), refresh = True)
             for url in urls_to_send:
@@ -449,11 +447,11 @@ def fmt_statuses(status_list, negated):
 
 def activity(dest, status):
     name = f'[{dest.color}]{dest.name}[/]'
-    if status == Status.RUNNING:
+    if status == ServiceStatus.RUNNING:
         return f'[green3]Sending URLs to {name} ...         '
-    elif status == Status.PAUSED_RATE:
+    elif status == ServiceStatus.PAUSED_RATE_LIMIT:
         return f'[yellow3 on grey35]Paused for rate limit {name} ... '
-    elif status == Status.PAUSED_ERROR:
+    elif status == ServiceStatus.PAUSED_ERROR:
         return f'[orange1]Paused for error {name} ...      '
     else:
         import pdb; pdb.set_trace()

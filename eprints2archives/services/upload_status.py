@@ -16,7 +16,7 @@ file "LICENSE" for more information.
 
 from enum import Enum
 
-class Status(Enum):
-    RUNNING      = 1                    # Currently uploading
-    PAUSED_RATE  = 2                    # Paused due to hitting a rate limit
-    PAUSED_ERROR = 3                    # Paused due to an error
+class ServiceStatus(Enum):
+    RUNNING           = 1               # Currently uploading.
+    PAUSED_RATE_LIMIT = 2               # Paused due to hitting a rate limit.
+    PAUSED_ERROR      = 3               # Paused due to an error.

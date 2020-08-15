@@ -26,7 +26,7 @@ from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict
-from .upload_status import Status
+from .upload_status import ServiceStatus
 
 
 # Constants.
@@ -98,9 +98,9 @@ class InternetArchive(Service):
             return {}
         elif isinstance(error, RateLimitExceeded):
             if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
-            notify(Status.PAUSED_RATE)
+            notify(ServiceStatus.PAUSED_RATE_LIMIT)
             wait(_RATE_LIMIT_SLEEP)
-            notify(Status.RUNNING)
+            notify(ServiceStatus.RUNNING)
             return self._saved_copies(url, notify)
         else:
             raise error
@@ -118,9 +118,9 @@ class InternetArchive(Service):
             return True
         elif isinstance(error, RateLimitExceeded):
             if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
-            notify(Status.PAUSED_RATE)
+            notify(ServiceStatus.PAUSED_RATE_LIMIT)
             wait(_RATE_LIMIT_SLEEP)
-            notify(Status.RUNNING)
+            notify(ServiceStatus.RUNNING)
             return self._archive(url, notify)
         else:
             if __debug__: log(f'save request resulted in an error: {str(error)}')
@@ -139,9 +139,9 @@ class InternetArchive(Service):
                 if __debug__: log(f'pausing due to multiple retries')
                 sleeptime = _RETRY_SLEEP * pow(retry - 1, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
-                notify(Status.PAUSED_ERROR)
+                notify(ServiceStatus.PAUSED_ERROR)
                 wait(sleeptime)
-                notify(Status.RUNNING)
+                notify(ServiceStatus.RUNNING)
                 return self._archive(url, notify, retry)
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')

@@ -42,7 +42,7 @@ from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict
-from .upload_status import Status
+from .upload_status import ServiceStatus
 
 
 # Constants.
@@ -172,9 +172,9 @@ class ArchiveToday(Service):
             # https://blog.archive.today/post/625519838592417792
             if response.status_code == 503:
                 if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
-                notify(Status.PAUSED_RATE)
+                notify(ServiceStatus.PAUSED_RATE_LIMIT)
                 wait(_RATE_LIMIT_SLEEP)
-                notify(Status.RUNNING)
+                notify(ServiceStatus.RUNNING)
                 return self._saved_copies(url)
         else:
             raise error
@@ -246,9 +246,9 @@ class ArchiveToday(Service):
             # https://blog.archive.today/post/625519838592417792
             if isinstance(error, ServiceFailure):
                 if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
-                notify(Status.PAUSED_RATE)
+                notify(ServiceStatus.PAUSED_RATE_LIMIT)
                 wait(_RATE_LIMIT_SLEEP)
-                notify(Status.RUNNING)
+                notify(ServiceStatus.RUNNING)
                 return self._archive(url, notify)
 
             # Our underlying net(...) function will retry automatically for
@@ -260,9 +260,9 @@ class ArchiveToday(Service):
             if retries_left > 0:
                 sleeptime = _RETRY_SLEEP * pow(retry, 2)
                 warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
-                notify(Status.PAUSED_ERROR)
+                notify(ServiceStatus.PAUSED_ERROR)
                 wait(sleeptime)
-                notify(Status.RUNNING)
+                notify(ServiceStatus.RUNNING)
                 return self._archive(url, notify, retry)
             else:
                 if __debug__: log(f'retry limit reached for {self.name}.')

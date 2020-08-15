@@ -14,8 +14,15 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from enum import Enum
+
+from .upload_status import ServiceStatus
 from .internetarchive import InternetArchive
 from .archivetoday import ArchiveToday
+
+
+# Constants.
+# .............................................................................
 
 KNOWN_SERVICES = {
     'internetarchive' : InternetArchive(),
@@ -26,13 +33,22 @@ KNOWN_SERVICES = {
 SERVICE_NAMES = sorted(KNOWN_SERVICES.keys())
 SERVICE_OBJECTS = KNOWN_SERVICES.values()
 
+
+# Exported functions.
+# .............................................................................
+
 def service_names():
+    '''Return a list of the known service names.'''
     return SERVICE_NAMES
 
+
 def service_interfaces():
+    '''Return a list of objects that act as interfaces to services.'''
     return SERVICE_OBJECTS
 
+
 def service_by_name(name):
+    '''Return the object corresponding to the given service name.'''
     if name.lower() in SERVICE_NAMES:
         return KNOWN_SERVICES[name.lower()]
     else:
