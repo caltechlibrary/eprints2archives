@@ -25,7 +25,7 @@ Table of contents
 Introduction
 ------------
 
-One way to improve preservation and distribution of EPrints server contents is to archive the web pages in archiving sites such as the [Internet Archive](https://archive.org/web/).  _Eprints2archives_ is a self-contained program that does exactly that.  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based such as such things as modification date), and sends the document URLs to archiving sites.  The program is written in Python 3 and works over a network using an EPrints server's REST API.
+One approach to improving preservation and distribution of EPrints server contents is to archive the web pages in sites such as the [Internet Archive](https://archive.org/web/).  _Eprints2archives_ is a self-contained program to do exactly that.  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), and sends document URLs to archiving sites.  It is written in Python 3 and works over a network using an EPrints server's REST API.
 
 
 Installation
@@ -38,12 +38,16 @@ On **Linux**, **macOS**, and **Windows** operating systems, you should be able t
 python3 -m pip install eprints2archives --upgrade
 ```
 
-As an alternative to getting it from [PyPI](https://pypi.org), you can use `pip` to install `eprints2archives` directly from GitHub:
+As an alternative to getting it from [PyPI](https://pypi.org), you can use `pip` to install `eprints2archives` directly from GitHub, like this:
 ```sh
 python3 -m pip install git+https://github.com/caltechlibrary/eprints2archives.git --upgrade
 ```
 
-Assuming that the installation proceeds normally, on Linux and macOS systems, you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell.
+After installing it, on Linux and macOS systems you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell.  You should be able to run `eprints2archives` from the shell like any other program.  On Windows, or if `eprints2archives` ended up in a location not normally searched by your terminal shell, you should still be able to invoke the program as a Python module.  For example,
+
+``` shell
+python3 -m eprints2archives -h
+```
  
 
 Usage
@@ -51,9 +55,9 @@ Usage
 
 For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
 
-`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given as the value to option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`. **This program will automatically add `/eprint` to the URL**, so omit the trailing `/eprint` part of the URL given to `-a`.
+`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given as the value to option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`.
 
-Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask the user interactively for the user name and password, and then (unless the `-K` option &ndash; or `/K` &ndash; is given) store them in the user's keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
+Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask for the user name and password, and then (unless the `-K` option &ndash; or `/K` on Windows &ndash; is given) store them in your keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
 
 
 ### How the list of records is determined
@@ -69,7 +73,7 @@ eprints2archives -l "12 Dec 2014" -a ....
 eprints2archives -l "July 4, 2013" -a ....
 ```
 
-If the `-s` option (or `/s` on Windows) is given, the records will also be filtered to include only those whose `<eprint_status>` element value is one of the listed status codes.  Comparisons are done in a case-insensitive manner.  Putting a caret character (`^`) in front of the status (or status list) negates the sense, so that `eprints2archives` will only keep those records whose `<eprint_status>` value is *not* among those given. Examples:
+If the `-s` option (or `/s` on Windows) is given, the records will also be filtered to include only those whose `eprint_status` field value is one of the listed status codes.  Comparisons are done in a case-insensitive manner.  Putting a caret character (`^`) in front of the status (or status list) negates the sense, so that `eprints2archives` will only keep those records whose `<eprint_status>` value is *not* among those given. Examples:
 
 ``` shell
 eprints2archives -s archive -a ...
@@ -78,7 +82,7 @@ eprints2archives -s ^inbox,buffer,deletion -a ...
 
 Both `--lastmod` and `--status` filering are done after the `-i` argument is processed.
 
-By default, if an error occurs when requesting a record from the EPrints server, `eprints2archives` will keep going and not stop execution. Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors. If the option `-e` (or `/e` on Windows) is given, `eprints2archives` will instead stop upon encountering a missing record, or missing file within a record, or similar errors. The default is to merely issue warnings when missing records are encountered because this is less frustrating for most use-cases.
+By default, if an error occurs when requesting a record or value from the EPrints server, `eprints2archives` will keep going, moving on to the next one. Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors. If the option `-e` (or `/e` on Windows) is given, `eprints2archives` will instead stop upon encountering a missing record, or missing file within a record, or similar errors. The default is to only issue warnings because this is less frustrating for most use-cases.
 
 
 ### How URLs are constructed
@@ -87,9 +91,9 @@ For every EPrint record, `eprints2archives` constructs 3 URLs and verifies that 
 
 1. `https://SERVER/N`
 2. `https://SERVER/id/eprint/N`
-3. The value of the field `<official_url>` (if any) in the EPrint record.
+3. The value of the field `official_url` (if any) in the EPrint record.
 
-The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  The third (the value of `<official_url>`) may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `<official_url>` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter resolves to the former.
+The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  The value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
 
 
 ### How the destination is determined
@@ -99,9 +103,9 @@ e.g., `internetarchive,archivetoday`.
 
 By default, `eprints2archives` will only ask a service to archive a copy of an EPrints record if the service does not already have an archived copy.  This makes sense because EPrints records usually change infrequently, and there's little point in repeatedly asking web archives to make new archives.  However, if you have reason to want the web archives to re-archive EPrints records, you can use the option `-f` (or `/f` on Windows).
 
-`eprints2archives` will use parallel process threads to query the EPrints server as well as to send records to archiving services.  By default, the maximum number of threads used is equal to 1/2 of the number of cores on the computer it is running on. The option `-t` (or `/t` on Windows) can be used to change this number.  `eprints2archives` will always use only one thread per web archiving service (and since there are only a few services, only a few threads are usable during that phase of operation), but a high number of threads can be helpful to speed up the initial data gathering step from the EPrints server.
+`eprints2archives` will use parallel process threads to query the EPrints server as well as to send records to archiving services.  By default, the maximum number of threads used is equal to 1/2 of the number of cores on the computer it is running on. The option `-t` (or `/t` on Windows) can be used to change this number.  `eprints2archives` will always use only one thread per web archiving service (and since there are only a few services, only a few threads are usable during that phase of operation), but a higher number of threads can be helpful to speed up the initial data gathering step from the EPrints server.
 
-Beware that there is a lag between when web archives such as Internet Archive receive a URL submission and when a saved copy is made available from the archive.  (In the case of Internet Archive, it is [3-10 hours](https://help.archive.org/hc/en-us/articles/360004651732-Using-The-Wayback-Machine).)  If you cannot find a given EPrints page in an archive shortly after running `eprints2archives`, it may be because not enough time has passed &ndash; try again later.
+**Beware that there is a lag** between when web archives such as Internet Archive receive a URL submission and when a saved copy is made available from the archive.  (For Internet Archive, it is [3-10 hours](https://help.archive.org/hc/en-us/articles/360004651732-Using-The-Wayback-Machine).)  If you cannot find a given EPrints page in an archive shortly after running `eprints2archives`, it may be because not enough time has passed.
 
 
 ### Other command-line arguments
@@ -158,7 +162,7 @@ This program exits with a return code of 0 if no problems are encountered.  It r
 Known issues and limitations
 ----------------------------
 
-Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 3 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
+Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 2 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
 
 
 Getting help
@@ -182,7 +186,7 @@ Software produced by the Caltech Library is Copyright (C) 2020, Caltech.  This s
 Authors and history
 ---------------------------
 
-[Mike Hucka](https://github.com/mhucka) began writing this program in mid-2020, in response to discussions with colleagues in Caltech's [Digital Library Development](https://www.library.caltech.edu/staff?&field_directory_department_name=Digital%20Library%20Development) group.
+This program was initially written in mid-2020, in response to discussions in Caltech's [Digital Library Development](https://www.library.caltech.edu/staff?&field_directory_department_name=Digital%20Library%20Development) group.
 
 The TimeMap parsing code in [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py) originally came from the [Off-Topic Memento Toolkit](https://github.com/oduwsdl/off-topic-memento-toolkit), by Shawn M. Jones, as it existed on 2020-07-29.  The OTMT code is made available according to the MIT license.  Acknowledgements and additional information are provided in the file header of [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py).
 
