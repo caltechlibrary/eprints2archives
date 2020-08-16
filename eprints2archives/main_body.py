@@ -120,11 +120,17 @@ class MainBody(Thread):
         hint = f'(Hint: use {"/" if sys.platform.startswith("wi") else "-"}h for help.)'
 
         # We can't do anything without the EPrints server URL.
+        # We remove any ending /eprint because we add it separately when needed.
+        # For convenience, we add /rest if the user forgot.
         if self.api_url is None:
             alert_fatal(f'Must provide an EPrints API URL. {hint}')
             raise CannotProceed(ExitCode.bad_arg)
-        elif not validators.url(self.api_url):
-            alert_fatal('The given API URL does not appear to be a valid URL')
+        if self.api_url.endswith('/eprint'):
+            self.api_url = self.api_url[0 : self.api_url.rfind('/eprint')]
+        if not self.api_url.endswith('/rest'):
+            self.api_url += '/rest'
+        if not validators.url(self.api_url):
+            alert_fatal(f'The given API URL appears invalid: {self.api_url}')
             raise CannotProceed(ExitCode.bad_arg)
 
         if self.lastmod:
