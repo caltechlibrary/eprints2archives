@@ -155,6 +155,10 @@ class MainBody(Thread):
         self.user, self.password, cancel = self.auth_handler.credentials(host)
         if cancel:
             raise UserCancelled
+        if self.user:
+            inform(f'Using login credentials for user "{self.user}" on {host}.')
+        else:
+            inform(f'Will not use a login or password for {host}.')
 
         # The id's are stored as strings, not ints, to avoid repeated conversion
         self.wanted_list = parsed_id_list(self.id_list)
