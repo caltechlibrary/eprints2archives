@@ -117,9 +117,11 @@ class MainBody(Thread):
             alert_fatal('No network connection.')
             raise CannotProceed(ExitCode.no_net)
 
+        hint = f'(Hint: use {"/" if sys.platform.startswith("wi") else "-"}h for help.)'
+
         # We can't do anything without the EPrints server URL.
         if self.api_url is None:
-            alert_fatal('Must provide an EPrints API URL.')
+            alert_fatal(f'Must provide an EPrints API URL. {hint}')
             raise CannotProceed(ExitCode.bad_arg)
         elif not validators.url(self.api_url):
             alert_fatal('The given API URL does not appear to be a valid URL')
@@ -131,7 +133,7 @@ class MainBody(Thread):
                 self.lastmod_str = self.lastmod.strftime(DATE_FORMAT)
                 if __debug__: log(f'parsed lastmod as {self.lastmod_str}')
             except Exception as ex:
-                alert_fatal(f'Unable to parse lastmod value: {str(ex)}')
+                alert_fatal(f'Unable to parse lastmod value: "{str(ex)}". {hint}')
                 raise CannotProceed(ExitCode.bad_arg)
 
         # It's easier to use None as an indication of no restriction (= 'any').
