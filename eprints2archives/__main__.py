@@ -71,9 +71,8 @@ def main(api_url = 'A', dest = 'D', error_out = False, force = False,
 This program contacts a given EPrints server, obtains the list of documents it
 serves (optionally modified based on selectors such as date), determines the
 URLs for the document pages on the EPrints server, and sends the URLs to
-archiving sites such as the Internet Archive.  The resulting web page archives,
-thus stored in independent 3rd-party archiving sites, helps preserve the
-EPrints content.
+archiving sites such as the Internet Archive.  This helps preserve the
+EPrints server contents in third-party archiving sites.
 
 Specifying which EPrints server to contact
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
