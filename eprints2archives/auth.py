@@ -34,6 +34,9 @@ from .debug import log
 _KEYRING = f'org.caltechlibrary.{__package__}'
 '''The name of the keyring used to store server access credentials, if any.'''
 
+_EMPTY = ''
+'''Character used to store an empty login name or password.'''
+
 
 # Exported class.
 # .............................................................................
@@ -93,36 +96,39 @@ class AuthHandler():
     #  solution taken here is to concatenate several values into a single string
     #  used as the actual value stored.  The individual values are separated by a
     #  character that is unlikely to be part of any user-typed value.
+    #
+    # Explanation of values and their meanings:
+    #   None                  => no value stored
+    #   _EMPTY                => value stored and it is deliberately an empty string
+    #   not None & not _EMPTY => an actual value
 
     def credentials(self, server, user = None, password = None):
         '''Returns a tuple of user, password, and a Boolean indicating
         whether the user cancelled the dialog.
         '''
         # If user name is provided and password is provided, use them.
-        # If user name is provided and password is None, prompt for password.
         # If no user name is provided, look in keyring & prompt if not there.
 
         if __debug__: log('keyring {}', 'enabled' if self._use_keyring else 'disabled')
         tmp_user = user if user is not None else self._user
         tmp_pswd = password if password is not None else self._pswd
-        if not tmp_user and self._use_keyring:
-            if __debug__: log('getting login & password from keyring')
+        if (tmp_user is None and tmp_pswd is None) and self._use_keyring:
+            # We weren't given a user name, but we can look in the keyring.
+            if __debug__: log('getting saved login & password from keyring')
             (_, k_user, k_pswd) = keyring_credentials(server)
-            if k_user is not None:
-                tmp_user = k_user
-                tmp_pswd = k_pswd
+            tmp_user = '' if k_user == _EMPTY else k_user
+            tmp_pswd = '' if k_pswd == _EMPTY else k_pswd
         cancel = False
-        if not all([tmp_pswd, tmp_user]):
+        if tmp_user is None or tmp_pswd is None:
+            # If user is not None but password is, we still have to prompt.
             prompt = f'User credentials for {server}'
             tmp_user, tmp_pswd, cancel = self._prompter(prompt, tmp_user, tmp_pswd)
         if cancel:
             return tmp_user, tmp_pswd, True
         if self._use_keyring:
-            # Save the credentials if they're different.
-            _, s_user, s_pswd = keyring_credentials(server)
-            if s_user != tmp_user or s_pswd != tmp_pswd:
-                if __debug__: log('saving credentials to keyring')
-                save_keyring_credentials(server, tmp_user, tmp_pswd)
+            # Save the credentials.
+            if __debug__: log('saving new credentials to keyring')
+            save_keyring_credentials(server, tmp_user or _EMPTY, tmp_pswd or _EMPTY)
         self._user = tmp_user
         self._pswd = tmp_pswd
         return self._user, self._pswd, False
