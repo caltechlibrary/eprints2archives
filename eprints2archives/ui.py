@@ -341,7 +341,8 @@ class CLI(UIBase):
         whether the user cancelled the dialog.  If 'user' is provided, then
         this method offers that as a default for the user.  If both 'user'
         and 'pswd' are provided, both the user and password are offered as
-        defaults but the password is not shown to the user.
+        defaults but the password is not shown to the user.  If the user
+        responds with empty strings, the values returned are '' and not None.
         '''
         try:
             text = (prompt + ' [default: ' + user + ']: ') if user else (prompt + ': ')
@@ -353,7 +354,9 @@ class CLI(UIBase):
             input_pswd = password(text)
             if len(input_pswd) == 0:
                 input_pswd = pswd
-            return input_user, input_pswd, False
+            final_user = '' if input_user is None else input_user
+            final_pswd = '' if input_pswd is None else input_pswd
+            return final_user, final_pswd, False
         except (KeyboardInterrupt, UserCancelled):
             return user, pswd, True
 
