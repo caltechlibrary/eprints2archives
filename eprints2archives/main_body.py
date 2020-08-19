@@ -364,7 +364,8 @@ class MainBody(Thread):
             else:
                 num_threads = min(num_dest, self.threads)
                 if __debug__: log(f'using {num_threads} threads to send records')
-                self._executor = ThreadPoolExecutor(max_workers = num_threads)
+                self._executor = ThreadPoolExecutor(max_workers = num_threads,
+                                                    thread_name_prefix = 'SendThread')
                 self._futures = []
                 for service in self.dest:
                     future = self._executor.submit(send_to_service, service, pbar)
@@ -398,7 +399,8 @@ class MainBody(Thread):
             # If we didn't return above, we're going parallel.
             num_threads = min(num_items, self.threads)
             if __debug__: log(f'using {num_threads} threads to gather records')
-            self._executor = ThreadPoolExecutor(max_workers = num_threads)
+            self._executor = ThreadPoolExecutor(max_workers = num_threads,
+                                                thread_name_prefix = 'GatherThread')
             self._futures = []
             for sublist in slice(items_list, num_threads):
                 future = self._executor.submit(loop, sublist, update_progress)
