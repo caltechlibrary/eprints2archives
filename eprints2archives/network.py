@@ -19,6 +19,7 @@ from   http.client import responses as http_responses
 from   os import stat
 import requests
 from   requests.packages.urllib3.exceptions import InsecureRequestWarning
+from   requests.exceptions import *
 import socket
 import ssl
 import urllib
@@ -114,6 +115,12 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 return response
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: logurl(f'received {str(ex)} during network operation')
+            raise
+        except (MissingSchema, InvalidSchema, URLRequired, InvalidURL,
+                InvalidHeader, InvalidProxyURL, UnrewindableBodyError,
+                ContentDecodingError, ChunkedEncodingError) as ex:
+            # Nothing more we can do about these.
+            if __debug__: logurl(f'exception {str(ex)}')
             raise
         except Exception as ex:
             if ex.args and len(ex.args) > 0:
