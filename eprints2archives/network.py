@@ -94,7 +94,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
     are passed to the network call.
     '''
     def logurl(text):
-        return f'{text} for {url}'
+        if __debug__: log(f'{text} for {url}')
 
     failures = 0
     retries = 0
