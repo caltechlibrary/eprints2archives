@@ -14,6 +14,7 @@ open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   bs4 import BeautifulSoup
 import codecs
 from   collections import defaultdict
 from   lxml import etree
@@ -46,6 +47,7 @@ class EPrintServer():
         self._protocol   = scheme(self._api_url)
         self._netloc     = netloc(self._api_url)
         self._hostname   = hostname(self._api_url)
+        self._base_url   = self._protocol + '://' + self._netloc
         self._user       = user
         self._password   = password
         # List of all record identifiers known to the server:
@@ -101,6 +103,28 @@ class EPrintServer():
             return [int(x) for x in self._index]
         else:
             return self._index
+
+
+    def front_page_url(self):
+        '''Return the public front page URL of this EPrints server.'''
+        return self._base_url
+
+
+    def view_urls(self):
+        '''Return a list of URLs corresponding to pages under /view.'''
+        # Start with the top-level one
+        urls = [self._base_url + '/view']
+        (response, error) = net('get', urls[0], timeout = 10)
+        if error:
+            if __debug__: log(f'got {type(error)} error for {urls[0]}')
+            return urls
+        # Scrape the HTML to find the block of links to pages under /view.
+        soup = BeautifulSoup(response.text, features='lxml')
+        div = soup.find('div', {'class': 'ep_view_browse_list'})
+        if div:
+            for a in div.find_all('a', href = True):
+                urls.append(self._base_url + '/view/' + a['href'])
+        return urls
 
 
     def eprint_id_url(self, id_or_record, verify = True):
