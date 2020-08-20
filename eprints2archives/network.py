@@ -114,7 +114,7 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 if __debug__: logurl(f'received {response}')
                 return response
         except (KeyboardInterrupt, UserCancelled) as ex:
-            if __debug__: logurl(f'received {str(ex)} during network operation')
+            if __debug__: logurl(f'network {method} interrupted by {str(ex)}')
             raise
         except (MissingSchema, InvalidSchema, URLRequired, InvalidURL,
                 InvalidHeader, InvalidProxyURL, UnrewindableBodyError,
@@ -272,8 +272,8 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
         error = ServiceFailure(addurl(f'Server error (code {code} -- {resp.reason})'))
     elif not (200 <= code < 400):
         error = NetworkFailure(addurl(f'Unable to resolve {url}'))
-    if __debug__: log('returning {} for {}'.format(
-            f'error {error}' if error else 'no error', url))
+    # The error msg will have had the URL added already; no need to do it here.
+    if __debug__: log('returning {}'.format(f'error {error}' if error else 'no error'))
     return (resp, error)
 
 
