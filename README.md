@@ -26,7 +26,9 @@ Table of contents
 Introduction
 ------------
 
-One approach to improving preservation and distribution of EPrints server contents is to archive the web pages in sites such as the [Internet Archive](https://archive.org/web/).  _Eprints2archives_ is a self-contained program to do exactly that.  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), and sends document URLs to archiving sites.  It is written in Python 3 and works over a network using an EPrints server's REST API.
+`eprints2archives`_ is a self-contained program to archive the web pages of an EPrints server in public web archiving sites such as the [Internet Archive](https://archive.org/web/).  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), and sends document URLs to archiving sites.  Use-cases include preserving an EPrints server's content ahead of migration to another system, and preservation of EPrints server contents in independent third-party archives.
+
+The program is written in Python 3 and works over a network using an EPrints server's REST API.  `eprints2archives` can work with EPrints servers that require logins as well as those that don't.  It uses parallel threads by default, transparently handles rate limits, and robustly deals with network errors.
 
 
 Installation
@@ -56,7 +58,7 @@ Usage
 
 For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
 
-`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given as the value to option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`.
+`eprints2archives` contacts the EPrints server whose web address is given as the value to the option `-a` (or `/a` on Windows).  A typical EPrints server URL has the form `https://server.institution.edu/rest`, but you can give it just `https://server.institution.edu` and `eprints2archives` will add the `/rest` part if it is missing.  Note that a value for `-a` is required; it cannot infer the server address on its own.
 
 Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask for the user name and password, and then (unless the `-K` option &ndash; or `/K` on Windows &ndash; is given) store them in your keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
 
