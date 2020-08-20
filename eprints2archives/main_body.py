@@ -207,6 +207,10 @@ class MainBody(Thread):
         else:
             wanted = available
 
+        # Make sure to archive the front pages and some common pages.
+
+        urls = self._eprints_general_urls(server)
+
         # The basic URLs for EPrint pages can be constructed without doing
         # any record lookups -- all you need is id numbers from the index.
         # Some sites like Caltech use an additional field, <official_url>,
@@ -223,7 +227,7 @@ class MainBody(Thread):
         records = []
         if not self.lastmod and not self.status:
             official_url = lambda r: server.eprint_field_value(r, 'official_url')
-            urls = self._eprints_values(official_url, wanted, server, "<official_url>'s")
+            urls += self._eprints_values(official_url, wanted, server, "<official_url>'s")
         else:
             skipped = []
             for r in self._eprints_values(server.eprint_xml, wanted, server, "record materials"):
@@ -246,19 +250,20 @@ class MainBody(Thread):
             if len(records) == 0:
                 warn('Filtering left 0 records -- nothing left to do')
                 return
-            urls = [server.eprint_field_value(r, 'official_url') for r in records]
+            urls += [server.eprint_field_value(r, 'official_url') for r in records]
 
         # Next, construct "standard" URLs and check that they exist.  Do this
         # AFTER the steps above, because if we did any filtering, we may have
         # a much shorter list of records now than what we started with.
 
-        urls += self._eprints_basic_urls(server, records or wanted)
+        urls += self._eprints_record_urls(server, records or wanted)
 
         # Good time to check if the parent thread sent an interrupt.
         raise_for_interrupts()
 
         # Clean up any None's and make sure we have something left to do.
-        urls = list(filter(None, urls))
+        # Also make sure the URLs are unique (that's the dict.fromkeys bit).
+        urls = list(dict.fromkeys(filter(None, urls)))
         if not urls:
             alert('List of URLs is empty -- nothing to archive')
             return
@@ -307,7 +312,12 @@ class MainBody(Thread):
         return self._gathered(record_values, items_list, header)
 
 
-    def _eprints_basic_urls(self, server, records_list):
+    def _eprints_general_urls(self, server):
+        '''Return a list of commonly-available, high-level EPrints URLs.'''
+        return [server.front_page_url()] + server.view_urls()
+
+
+    def _eprints_record_urls(self, server, records_list):
         '''Get the normal EPrints URLS for the items in "records_list".'''
         # Helper function: body of loop that is executed in all cases.
         def eprints_urls(item_list, update_progress):
@@ -332,7 +342,7 @@ class MainBody(Thread):
         '''Send the list of URLs to each web archiving service in parallel.'''
         num_urls = len(urls_to_send)
         num_dest = len(self.dest)
-        self._report(f'{num_urls} URLs to be sent to {num_dest} {plural("service", num_dest)}.')
+        self._report(f'Will send {num_urls} URLs to {num_dest} {plural("service", num_dest)}.')
         if self.force:
             inform('Force option given ⟹  adding URLs even if archives have copies.')
 
