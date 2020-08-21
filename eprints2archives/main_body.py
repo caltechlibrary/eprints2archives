@@ -209,6 +209,7 @@ class MainBody(Thread):
 
         # Make sure to archive the front pages and some common pages.
 
+        inform('Extracting URLs under /view pages ...')
         urls = self._eprints_general_urls(server)
 
         # The basic URLs for EPrint pages can be constructed without doing
@@ -298,7 +299,7 @@ class MainBody(Thread):
                     else:
                         warn(failure)
                         continue
-                if data:
+                if data is not None:
                     results.append(data)
                 elif self.quit_on_error:
                     alert(f'Received no data for {item}')
@@ -323,12 +324,12 @@ class MainBody(Thread):
         def eprints_urls(item_list, update_progress):
             urls = []
             for r in item_list:
-                if __debug__: log(f'getting URLs for {r}')
+                # Note: don't use log() here b/c r could be an xml etree.
                 try:
                     urls.append(server.eprint_id_url(r))
                     urls.append(server.eprint_page_url(r))
                 except (NoContent, AuthenticationFailure) as ex:
-                    if __debug__: log(f'got exception {str(ex)} for {r} -- moving on')
+                    continue
                 update_progress()
                 raise_for_interrupts()
             return urls
