@@ -27,9 +27,9 @@ Table of contents
 Introduction
 ------------
 
-`eprints2archives` is a self-contained program to archive the web pages of an EPrints server in public web archiving sites such as the [Internet Archive](https://archive.org/web/).  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), and sends document URLs to archiving sites.  Use-cases include preserving an EPrints server's content ahead of migration to another system, and preservation of EPrints server contents in independent third-party archives.
+`eprints2archives` is a self-contained program to archive the web pages of an EPrints server in public web archiving sites such as the [Internet Archive](https://archive.org/web/).  It contacts an EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), determines the document URLs, extracts additional URLs by scraping pages under the `/view` section of the public site, and finally, sends the collected URLs to web archives.  Use-cases include archiving an server content ahead of migration to another system, and preserving contents in independent third-party archives.
 
-The program is written in Python 3 and works over a network using an EPrints server's REST API.  `eprints2archives` can work with EPrints servers that require logins as well as those that allow anonymous access.  It uses parallel threads by default, transparently handles rate limits, and robustly deals with network errors.
+The program is written in Python 3 and works over a network using an EPrints server's REST API and normal HTTP.  `eprints2archives` can work with EPrints servers that require logins as well as those that allow anonymous access.  It uses parallel threads by default, transparently handles rate limits, and robustly deals with network errors.
 
 
 Installation
@@ -96,6 +96,7 @@ For a given EPrints server, `eprints2archives` begins by constructing some gener
 * `https://SERVER`
 * `https://SERVER/view`
 * The set of pages `https://SERVER/view/X`, where each `X` is obtained by parsing the HTML of `https://SERVER/view` and extracting links to pages under `/view`
+* The set of pages `https://SERVER/view/X/Y`, where each `Y` is obtained by parsing the HTML of `https://SERVER/view/X` and extracting links
 
 Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies that they exist on the EPrints server; thus, there may be up to 3 URLs sent to each public web archive for every EPrint record on a server.  The URLs are as follows, where `N` is the id number of the EPrint record:
 
@@ -104,6 +105,8 @@ Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies
 3. The value of the field `official_url` (if any) in the EPrint record.
 
 The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  On the other hand, the value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
+
+Finally, the set of URLs collected by all of the steps above is deduplicated to produce a list of unique URLs to be sent to the destinations archives.
 
 
 ### How the destination is determined
@@ -184,7 +187,7 @@ The Internet Archive itself [offers multiple ways of submitting content](https:/
 
 Many institutions use IA's [Archive-It](https://help.archive.org/hc/en-us/articles/360004651612-Archive-It-Information) service, and Archive-It can be used to crawl EPrints server pages.  In principle, this can capture an EPrints server site more fully than `eprints2archives` because `eprints2archives` only follows specific common links and pages, and misses any custom data views or additional pages (including "About" pages) that may be present on an EPrints server.  Nevertheless, `eprints2archives` can be useful even for sites that use Archive-It because it asks the EPrints server itself about its records and gets URLs (such as the `official_url` values) that may not be mentioned in the EPrints record views (and thus would be missed by Archive-It's "on the outside looking in" approach).  Since `eprints2archives` by default does not send URLs that are already present in archiving destinations, it can be used in conjunction with Archive-It as a secondary or backup scheme.
 
-A number of third-party archiving tools exist for working with web archives.  One of the few that can target multiple destination archives besides IA is [Archive Now](https://github.com/oduwsdl/archivenow).  It partly inspired the creation of `eprints2archives`.  Archive Now's code for interfacing to web archives also served as initial starting points for figuring out to do the same in `eprints2archives`.  On the other hand, the latter is more special-purpose (being aimed at extracting content from EPrints servers), and has more advanced capabilities such as handling rate limits, pause-and-retry handling of errors, and use of parallel threads.
+A number of third-party archiving tools exist for working with web archives.  One of the few that can target multiple destination archives besides IA is [Archive Now](https://github.com/oduwsdl/archivenow).  It partly inspired the creation of `eprints2archives`.  Archive Now's code for interfacing to web archives also served as initial starting points for figuring out to do the same in `eprints2archives`.  On the other hand, `eprints2archives` is more special-purpose (being aimed at extracting content from EPrints servers), and has more advanced capabilities such as handling rate limits, pause-and-retry handling of errors, and use of parallel threads.
 
 Most similar tools work only with the [Internet Archive's Wayback Machine](https://archive.org/web/). The Ruby-based [WaybackArchiver](https://github.com/buren/wayback_archiver) can crawl a site given a URL or a sitemap and then send the URLs to IA in parallel; however, it does not appear to attempt to recover from as many error situations as `eprints2archives`, and of course, lacks its EPrints-specific features.  [Waybackpy](https://github.com/akamhy/waybackpy) is a simpler tool designed to interact with IA, and while it can submit URLs to be saved, it lacks other capabilities of `eprints2archives` such as automatically handling rate limits and error retries, as well as not being designed for extracting content from EPrints servers.  Some other similar but much simpler and less advanced IA-specific tools include [savepagenow](https://github.com/pastpages/savepagenow), [ia_wayback](https://github.com/bitsgalore/iawayback), [Wayback Sitemap Archive](https://github.com/plibither8/wayback-sitemap-archive), [Save to the Wayback Machine](https://github.com/VerifiedJoseph/Save-to-the-Wayback-Machine), the [wayback api](https://github.com/httpreserve/wayback) from HTTPreserve.
 
