@@ -19,6 +19,7 @@ from   http.client import responses as http_responses
 from   os import stat
 import requests
 from   requests.packages.urllib3.exceptions import InsecureRequestWarning
+from   requests.exceptions import *
 import socket
 import ssl
 import urllib
@@ -38,7 +39,7 @@ _MAX_RECURSIVE_CALLS = 10
 '''How many times can certain network functions call themselves upon
 encountering a network error before they stop and give up.'''
 
-_MAX_FAILURES = 3
+_MAX_CONSECUTIVE_FAILS = 3
 '''Maximum number of consecutive failures before pause and try another round.'''
 
 _MAX_RETRIES = 5
@@ -93,10 +94,13 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
     (in seconds) on the network requests get or post. Other keyword arguments
     are passed to the network call.
     '''
+    def logurl(text):
+        if __debug__: log(f'{text} for {url}')
+
     failures = 0
     retries = 0
     error = None
-    while failures < _MAX_FAILURES and not interrupted():
+    while failures < _MAX_CONSECUTIVE_FAILS and not interrupted():
         try:
             with warnings.catch_warnings():
                 # The underlying urllib3 library used by the Python requests
@@ -104,13 +108,19 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 # We don't care here.  See also this for a discussion:
                 # https://github.com/kennethreitz/requests/issues/2214
                 warnings.simplefilter("ignore", InsecureRequestWarning)
-                if __debug__: log(f'doing http {method} on {url}')
+                if __debug__: logurl(f'doing http {method}')
                 func = getattr(session, method) if session else getattr(requests, method)
                 response = func(url, timeout = timeout, verify = False, **kwargs)
-                if __debug__: log(f'response received: {response}')
+                if __debug__: logurl(f'received {response}')
                 return response
         except (KeyboardInterrupt, UserCancelled) as ex:
-            if __debug__: log('received UserCancelled during network operation')
+            if __debug__: logurl(f'network {method} interrupted by {str(ex)}')
+            raise
+        except (MissingSchema, InvalidSchema, URLRequired, InvalidURL,
+                InvalidHeader, InvalidProxyURL, UnrewindableBodyError,
+                ContentDecodingError, ChunkedEncodingError) as ex:
+            # Nothing more we can do about these.
+            if __debug__: logurl(f'exception {str(ex)}')
             raise
         except Exception as ex:
             if ex.args and len(ex.args) > 0:
@@ -119,32 +129,32 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                     raise
             # Problem might be transient.  Don't quit right away.
             failures += 1
-            if __debug__: log(f'exception (failure #{failures}): {str(ex)}')
+            if __debug__: logurl(f'exception (failure #{failures}): {str(ex)}')
             # Record the first error we get, not the subsequent ones, because
             # in the case of network outages, the subsequent ones will be
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
-            if __debug__: log('pausing for 1 s')
+            if __debug__: logurl('pausing for 0.5 s')
             wait(0.5)
-        if failures >= _MAX_FAILURES:
+        if failures >= _MAX_CONSECUTIVE_FAILS:
             # Pause with exponential back-off, reset failure count & try again.
             if retries < _MAX_RETRIES:
                 retries += 1
                 failures = 0
                 pause = 10 * retries * retries
-                if __debug__: log(f'pausing {pause}s due to consecutive failures')
+                if __debug__: logurl(f'pausing {pause} s due to consecutive failures')
                 wait(pause)
             else:
-                if __debug__: log('exceeded max failures and max retries')
+                if __debug__: logurl('exceeded max failures and max retries')
                 raise error
     if interrupted():
-        if __debug__: log('interrupted -- raising UserCancelled')
-        raise UserCancelled('Network request has been interrupted')
+        if __debug__: logurl('interrupted -- raising UserCancelled')
+        raise UserCancelled(f'Network request has been interrupted for {url}')
     else:
         # In theory, we should never reach this point.  If we do, then:
-        raise InternalError('Unexpected code contingency in timed_request')
+        raise InternalError(f'Unexpected code contingency in timed_request for {url}')
 
 
 def net(method, url, session = None, timeout = 20, handle_rate = True,
@@ -182,13 +192,13 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
         resp = timed_request(method, url, session, timeout,
                              allow_redirects = True, **kwargs)
     except requests.exceptions.ConnectionError as ex:
-        if __debug__: log(f'got network exception: {str(ex)}')
+        if __debug__: log(addurl(f'got network exception: {str(ex)}'))
         if recursing >= _MAX_RECURSIVE_CALLS:
-            if __debug__: log('returning NetworkFailure')
+            if __debug__: log(addurl('returning NetworkFailure'))
             return (resp, NetworkFailure(addurl('Too many connection errors')))
         arg0 = ex.args[0]
         if isinstance(arg0, urllib3.exceptions.MaxRetryError):
-            if __debug__: log(str(arg0))
+            if __debug__: log(addurl(str(arg0)))
             # This can be a transient error due to various causes.  Retry once.
             if recursing == 0:
                 wait(1)
@@ -198,7 +208,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
                 # We've seen maxretry before or we're recursing due to some
                 # other failure.  Time to bail.
                 original = unwrapped_urllib3_exception(arg0)
-                if __debug__: log('returning NetworkFailure')
+                if __debug__: log(addurl('returning NetworkFailure'))
                 if isinstance(original, str) and 'unreacheable' in original:
                     return (resp, NetworkFailure(addurl('Unable to connect to server')))
                 elif network_available():
@@ -207,26 +217,26 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
                     return (resp, NetworkFailure(addurl('Lost connection with server')))
         elif (isinstance(arg0, urllib3.exceptions.ProtocolError)
               and arg0.args and isinstance(args0.args[1], ConnectionResetError)):
-            if __debug__: log('net() got ConnectionResetError; pausing for 1 s')
+            if __debug__: log(addurl('net() got ConnectionResetError; pausing for 1 s'))
             wait(1)                     # Sleep a short time and try again.
-            if __debug__: log(f'doing recursive call #{recursing + 1}')
+            if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
             return net(method, url, session, timeout, polling, handle_rate,
                        recursing + 1, **kwargs)
         else:
-            if __debug__: log('returning NetworkFailure')
-            return (resp, NetworkFailure(str(ex)))
+            if __debug__: log(addurl('returning NetworkFailure'))
+            return (resp, NetworkFailure(addurl(str(ex))))
     except requests.exceptions.ReadTimeout as ex:
         if network_available():
-            if __debug__: log('returning ServiceFailure')
+            if __debug__: log(addurl('returning ServiceFailure'))
             return (resp, ServiceFailure(addurl('Timed out reading data from server')))
         else:
-            if __debug__: log('returning NetworkFailure')
+            if __debug__: log(addurl('returning NetworkFailure'))
             return (resp, NetworkFailure(addurl('Timed out reading data over network')))
     except requests.exceptions.InvalidSchema as ex:
-        if __debug__: log('returning NetworkFailure')
+        if __debug__: log(addurl('returning NetworkFailure'))
         return (resp, NetworkFailure(addurl('Unsupported network protocol')))
     except Exception as ex:
-        if __debug__: log(f'returning exception: {str(ex)}')
+        if __debug__: log(addurl(f'returning exception: {str(ex)}'))
         return (resp, ex)
 
     # Interpret the response.  Note that the requests library handles code 301
@@ -235,7 +245,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     code = resp.status_code
     if __debug__: log(addurl(f'got http status code {code}'))
     if code == 400:
-        error = RequestError(addurl('Server rejected the request'))
+        error = ServiceFailure(addurl('Server rejected the request'))
     elif code in [401, 402, 403, 407, 451, 511]:
         error = AuthenticationFailure(addurl('Access is forbidden'))
     elif code in [404, 410] and not polling:
@@ -247,23 +257,23 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     elif code == 429:
         if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
-            if __debug__: log(f'rate limit hit -- sleeping {pause} s')
+            if __debug__: log(addurl(f'rate limit hit -- sleeping {pause} s'))
             wait(pause)                   # 5 s, then 10 s, then 15 s, etc.
-            if __debug__: log(f'doing recursive call #{recursing + 1}')
+            if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
             return net(method, url, session = session, timeout = timeout,
                        polling = polling, handle_rate = True,
                        recursing = recursing + 1, **kwargs)
-        error = RateLimitExceeded('Server blocking requests due to rate limits')
+        error = RateLimitExceeded(addurl('Server blocking requests due to rate limits'))
     elif code == 503:
-        error = ServiceFailure(f'{resp.reason}')
+        error = ServiceFailure(addurl(f'{resp.reason}'))
     elif code == 504:
-        error = ServiceFailure(f'Server timeout: {resp.reason}')
+        error = ServiceFailure(addurl(f'Server timeout: {resp.reason}'))
     elif code in [500, 501, 502, 506, 507, 508]:
         error = ServiceFailure(addurl(f'Server error (code {code} -- {resp.reason})'))
     elif not (200 <= code < 400):
-        error = NetworkFailure(f'Unable to resolve {url}')
-    if __debug__: log('returning result {}',
-                      f'with error {error}' if error else 'without error')
+        error = NetworkFailure(addurl(f'Unable to resolve {url}'))
+    # The error msg will have had the URL added already; no need to do it here.
+    if __debug__: log('returning {}'.format(f'error {error}' if error else 'no error'))
     return (resp, error)
 
 

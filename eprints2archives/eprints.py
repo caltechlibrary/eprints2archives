@@ -16,7 +16,7 @@ file "LICENSE" for more information.
 
 import codecs
 from   collections import defaultdict
-from   lxml import etree
+from   lxml import etree, html
 import os
 from   os import path
 import shutil
@@ -46,6 +46,7 @@ class EPrintServer():
         self._protocol   = scheme(self._api_url)
         self._netloc     = netloc(self._api_url)
         self._hostname   = hostname(self._api_url)
+        self._base_url   = self._protocol + '://' + self._netloc
         self._user       = user
         self._password   = password
         # List of all record identifiers known to the server:
@@ -101,6 +102,40 @@ class EPrintServer():
             return [int(x) for x in self._index]
         else:
             return self._index
+
+
+    def front_page_url(self):
+        '''Return the public front page URL of this EPrints server.'''
+        return self._base_url
+
+
+    def view_urls(self):
+        '''Return a list of URLs corresponding to pages under /view.'''
+        # Start with the top-level one
+        view_base = self._base_url + '/view/'
+        (response, error) = net('get', view_base, timeout = 10)
+        if error:
+            if __debug__: log(f'got {type(error)} error for {view_base}')
+            return urls
+        # Scrape the HTML to find the block of links to pages under /view.
+        doc = html.fromstring(response.text)
+        doc.make_links_absolute(view_base)
+        view_urls = [x.get('href') for x in doc.cssselect('div.ep_view_browse_list li a')]
+        if __debug__: log(f'found {len(view_urls)} URLs under /view')
+        # Iterate over each page found to get the links to its subpages.
+        # There will be many under /view/ids, one for each record, but they're
+        # separate pages from the individual EPrint record pages.
+        subpage_urls = []
+        for view_subpage in view_urls:
+            (response, error) = net('get', view_subpage, timeout = 10)
+            if error:
+                if __debug__: log(f'got {type(error)} error for {view_subpage}')
+                continue
+            doc = html.fromstring(response.text)
+            doc.make_links_absolute(view_subpage)
+            subpage_urls += [x.get('href') for x in doc.cssselect('div.ep_view_menu li a')]
+        if __debug__: log(f'collected {len(subpage_urls)} /view subpage URLs')
+        return view_urls + subpage_urls
 
 
     def eprint_id_url(self, id_or_record, verify = True):

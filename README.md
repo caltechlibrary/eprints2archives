@@ -1,7 +1,7 @@
 eprints2archives<img width="12%" align="right" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-icon.png">
 ================
 
-A program that can obtain records from an EPrints server and send them to public web archiving services such as the [Internet Archive](https://archive.org/web/) and others.
+A program that can obtain records from an EPrints server and send them to public web archiving services such as the [the Wayback Machine at the Internet Archive](https://archive.org/web/) and others.
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg?style=flat-square)](https://choosealicense.com/licenses/bsd-3-clause)
 [![Python](https://img.shields.io/badge/Python-3.6+-brightgreen.svg?style=flat-square)](http://shields.io)
@@ -16,6 +16,7 @@ Table of contents
 * [Installation](#installation)
 * [Usage](#usage)
 * [Known issues and limitations](#known-issues-and-limitations)
+* [Relationships to other similar tools](#relationships-to-other-similar-tools)
 * [Getting help](#getting-help)
 * [Contributing](#contributing)
 * [License](#license)
@@ -26,7 +27,9 @@ Table of contents
 Introduction
 ------------
 
-One approach to improving preservation and distribution of EPrints server contents is to archive the web pages in sites such as the [Internet Archive](https://archive.org/web/).  _Eprints2archives_ is a self-contained program to do exactly that.  It contacts a given EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), and sends document URLs to archiving sites.  It is written in Python 3 and works over a network using an EPrints server's REST API.
+`eprints2archives` is a self-contained program to archive the web pages of an EPrints server in public web archiving sites such as the [Internet Archive](https://archive.org/web/).  It contacts an EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), determines the document URLs, extracts additional URLs by scraping pages under the `/view` section of the public site, and finally, sends the collected URLs to web archives.  Use-cases include archiving an server content ahead of migration to another system, and preserving contents in independent third-party archives.
+
+The program is written in Python 3 and works over a network using an EPrints server's REST API and normal HTTP.  `eprints2archives` can work with EPrints servers that require logins as well as those that allow anonymous access.  It uses parallel threads by default, transparently handles rate limits, and robustly deals with network errors.
 
 
 Installation
@@ -56,7 +59,7 @@ Usage
 
 For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
 
-`eprints2archives` contacts an EPrints REST server whose network API is accessible at the URL given as the value to option `-a` (or `/a` on Windows).  `eprints2archives` **must be given a value for this option**; it cannot infer the server address on its own.  A typical EPrints server URL has the form `https://server.institution.edu/rest`.
+`eprints2archives` contacts the EPrints server whose web address is given as the value to the option `-a` (or `/a` on Windows).  A typical EPrints server REST API will have a URL of the form `https://server.institution.edu/rest`, but you can give it just `https://server.institution.edu` and `eprints2archives` will add the `/rest` part if it is missing.  Note that **a value for `-a` is required**; it cannot infer the server address on its own.
 
 Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask for the user name and password, and then (unless the `-K` option &ndash; or `/K` on Windows &ndash; is given) store them in your keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
 
@@ -81,20 +84,29 @@ eprints2archives -s archive -a ...
 eprints2archives -s ^inbox,buffer,deletion -a ...
 ```
 
-Both `--lastmod` and `--status` filering are done after the `-i` argument is processed.
+Both `--lastmod` and `--status` filtering are done after the `-i` argument is processed.
 
 By default, if an error occurs when requesting a record or value from the EPrints server, `eprints2archives` will keep going, moving on to the next one. Common causes of errors include missing records implied by the arguments to `-i`, missing files associated with a given record, and files inaccessible due to permissions errors. If the option `-e` (or `/e` on Windows) is given, `eprints2archives` will instead stop upon encountering a missing record, or missing file within a record, or similar errors. The default is to only issue warnings because this is less frustrating for most use-cases.
 
 
 ### How URLs are constructed
 
-For every EPrint record, `eprints2archives` constructs 3 URLs and verifies that they exist on the EPrints server; thus, there may be up to 3 URLs sent to each public web archive for every EPrint record on a server.  The URLs are as follows (where `SERVER` is the server hostname + post number (if any), and `N` is the id number of the EPrint record):
+For a given EPrints server, `eprints2archives` begins by constructing some general URLs (where `SERVER` is the server hostname + post number, if any):
+
+* `https://SERVER`
+* `https://SERVER/view`
+* The set of pages `https://SERVER/view/X`, where each `X` is obtained by parsing the HTML of `https://SERVER/view` and extracting links to pages under `/view`
+* The set of pages `https://SERVER/view/X/Y`, where each `Y` is obtained by parsing the HTML of `https://SERVER/view/X` and extracting links
+
+Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies that they exist on the EPrints server; thus, there may be up to 3 URLs sent to each public web archive for every EPrint record on a server.  The URLs are as follows, where `N` is the id number of the EPrint record:
 
 1. `https://SERVER/N`
 2. `https://SERVER/id/eprint/N`
 3. The value of the field `official_url` (if any) in the EPrint record.
 
-The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  The value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
+The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  On the other hand, the value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
+
+Finally, the set of URLs collected by all of the steps above is deduplicated to produce a list of unique URLs to be sent to the destinations archives.
 
 
 ### How the destination is determined
@@ -166,6 +178,22 @@ Known issues and limitations
 Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 2 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
 
 
+Relationships to other similar tools
+------------------------------------
+
+Other tools exist for sending content to web archives; some are general-purpose enough that they could be used to send EPrints server contents to web archives.  To the author's knowledge, `eprints2archives` is the only software designed specifically to work with EPrints servers to send content to multiple archiving destinations.
+
+The Internet Archive itself [offers multiple ways of submitting content](https://help.archive.org/hc/en-us/articles/360001513491-Save-Pages-in-the-Wayback-Machine), including sending URLs via email, using a browser extension, and the simple-to-use [Save Page Now](https://web.archive.org/save/). The latter offers the option of capturing pages more deeply if the user is logged in to their Internet Archive (IA) account.  By contrast, `eprints2archives` can send the entire content of an EPrints server in one go, without requiring the user to have an IA account.
+
+Many institutions use IA's [Archive-It](https://help.archive.org/hc/en-us/articles/360004651612-Archive-It-Information) service, and Archive-It can be used to crawl EPrints server pages.  In principle, this can capture an EPrints server site more fully than `eprints2archives` because `eprints2archives` only follows specific common links and pages, and misses any custom data views or additional pages (including "About" pages) that may be present on an EPrints server.  Nevertheless, `eprints2archives` can be useful even for sites that use Archive-It because it asks the EPrints server itself about its records and gets URLs (such as the `official_url` values) that may not be mentioned in the EPrints record views (and thus would be missed by Archive-It's "on the outside looking in" approach).  Since `eprints2archives` by default does not send URLs that are already present in archiving destinations, it can be used in conjunction with Archive-It as a secondary or backup scheme.
+
+A number of third-party archiving tools exist for working with web archives.  One of the few that can target multiple destination archives besides IA is [Archive Now](https://github.com/oduwsdl/archivenow).  It partly inspired the creation of `eprints2archives`.  Archive Now's code for interfacing to web archives also served as initial starting points for figuring out to do the same in `eprints2archives`.  On the other hand, `eprints2archives` is more special-purpose (being aimed at extracting content from EPrints servers), and has more advanced capabilities such as handling rate limits, pause-and-retry handling of errors, and use of parallel threads.
+
+Most similar tools work only with the [Internet Archive's Wayback Machine](https://archive.org/web/). The Ruby-based [WaybackArchiver](https://github.com/buren/wayback_archiver) can crawl a site given a URL or a sitemap and then send the URLs to IA in parallel; however, it does not appear to attempt to recover from as many error situations as `eprints2archives`, and of course, lacks its EPrints-specific features.  [Waybackpy](https://github.com/akamhy/waybackpy) is a simpler tool designed to interact with IA, and while it can submit URLs to be saved, it lacks other capabilities of `eprints2archives` such as automatically handling rate limits and error retries, as well as not being designed for extracting content from EPrints servers.  Some other similar but much simpler and less advanced IA-specific tools include [savepagenow](https://github.com/pastpages/savepagenow), [ia_wayback](https://github.com/bitsgalore/iawayback), [Wayback Sitemap Archive](https://github.com/plibither8/wayback-sitemap-archive), [Save to the Wayback Machine](https://github.com/VerifiedJoseph/Save-to-the-Wayback-Machine), the [wayback api](https://github.com/httpreserve/wayback) from HTTPreserve.
+
+[archive.today](https://github.com/dhamaniasad/archive.today) is one of the few tools for working with archives other than IA.  It is a simple command-line tool for sending content to and downloading from Archive.Today.
+
+
 Getting help
 ------------
 
@@ -189,9 +217,9 @@ Authors and history
 
 This program was initially written in mid-2020, in response to discussions in Caltech's [Digital Library Development](https://www.library.caltech.edu/staff?&field_directory_department_name=Digital%20Library%20Development) group.
 
-The TimeMap parsing code in [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py) originally came from the [Off-Topic Memento Toolkit](https://github.com/oduwsdl/off-topic-memento-toolkit), by Shawn M. Jones, as it existed on 2020-07-29.  The OTMT code is made available according to the MIT license.  Acknowledgements and additional information are provided in the file header of [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py).
+The TimeMap parsing code in [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py) originally came from the [Off-Topic Memento Toolkit](https://github.com/oduwsdl/off-topic-memento-toolkit), by Shawn M. Jones, as it existed on 2020-07-29.  The OTMT code is made available according to the MIT license.  Acknowledgments and additional information are provided in the file header of [eprints2archives/services/timemap.py](eprints2archives/services/timemap.py).
 
-The algorithm and some code for interacting with [Archive.Today](https://archive.today) were borrowed from [ArchiveNow](https://github.com/oduwsdl/archivenow), a tool developed by [Web Science and Digital Libraries Research Group at Old Dominion University](https://ws-dl.blogspot.com).  The authors and contributors of the specific code file used ([is_handler.py](https://github.com/oduwsdl/archivenow/blob/master/archivenow/handlers/is_handler.py)), as it existed on 2020-07-17, were [Mohamed Aturban](https://github.com/maturban), [Shawn M. Jones](https://github.com/shawnmjones), [veloute](https://github.com/veloute), and [evil-wayback](https://github.com/evil-wayback).  ArchiveNow is made available according to the MIT license.  Acknowledgements and additional information are provided in the file header of [eprints2archives/services/archivetoday.py](eprints2archives/services/archivetoday.py).
+The algorithm and some code for interacting with [Archive.Today](https://archive.today) were borrowed from [ArchiveNow](https://github.com/oduwsdl/archivenow), a tool developed by [Web Science and Digital Libraries Research Group at Old Dominion University](https://ws-dl.blogspot.com).  The authors and contributors of the specific code file used ([is_handler.py](https://github.com/oduwsdl/archivenow/blob/master/archivenow/handlers/is_handler.py)), as it existed on 2020-07-17, were [Mohamed Aturban](https://github.com/maturban), [Shawn M. Jones](https://github.com/shawnmjones), [veloute](https://github.com/veloute), and [evil-wayback](https://github.com/evil-wayback).  ArchiveNow is made available according to the MIT license.  Acknowledgments and additional information are provided in the file header of [eprints2archives/services/archivetoday.py](eprints2archives/services/archivetoday.py).
 
 `eprints2archives` makes use of numerous open-source packages, without which it would have been effectively impossible to develop `eprints2archives` with the resources we had.  We want to acknowledge this debt.  In alphabetical order, the packages are:
 
