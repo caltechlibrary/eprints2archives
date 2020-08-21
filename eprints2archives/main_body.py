@@ -397,7 +397,7 @@ class MainBody(Thread):
         num_items = len(items_list)
         with Progress('[progress.description]{task.description}',
                       BarColumn(bar_width = None),
-                      TextColumn('{task.completed}/' + intcomma(num_items)),
+                      TextColumn('{task.completed}/' + intcomma(num_items) + ' records'),
                       refresh_per_second = 5) as progress:
             # Wrap up the progress bar updater as a lambda that we pass down.
             bar = progress.add_task(header, total = num_items)
@@ -472,10 +472,10 @@ def fmt_statuses(status_list, negated):
 def activity(dest, status):
     name = f'[{dest.color}]{dest.name}[/]'
     if status == ServiceStatus.RUNNING:
-        return f'[green3]Sending URLs to {name} ...         '
+        return f'[green3]Sending URLs to {name} ...                     '
     elif status == ServiceStatus.PAUSED_RATE_LIMIT:
-        return f'[yellow3 on grey35]Paused for rate limit {name} ... '
+        return f'[yellow3 on grey35]Paused for rate limit {name} ...               '
     elif status == ServiceStatus.PAUSED_ERROR:
-        return f'[orange1]Paused for error {name} ...      '
+        return f'[orange1]Paused due to {name} error -- will retry ...   '
     else:
-        import pdb; pdb.set_trace()
+        return f'[red]Unknown status                                 '

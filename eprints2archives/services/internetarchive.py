@@ -135,7 +135,6 @@ class InternetArchive(Service):
                 # Subtract 1 b/c we try without pause once, before we land here.
                 if __debug__: log(f'pausing due to multiple retries')
                 sleeptime = _RETRY_SLEEP * pow(retry - 1, 2)
-                warn(f'Got error from {self.name}; pausing for {intcomma(sleeptime)}s.')
                 notify(ServiceStatus.PAUSED_ERROR)
                 wait(sleeptime)
                 notify(ServiceStatus.RUNNING)
