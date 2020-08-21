@@ -209,7 +209,7 @@ class MainBody(Thread):
 
         # Make sure to archive the front pages and some common pages.
 
-        inform('Extracting URLs under /view pages ...')
+        inform('Looking through /view pages for URLs ...')
         urls = self._eprints_general_urls(server)
 
         # The basic URLs for EPrint pages can be constructed without doing
