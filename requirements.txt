@@ -1,6 +1,6 @@
-beautifulsoup4  >= 4.7.1
 aenum           >= 2.2.3
 appdirs         >= 1.4.3
+cssselect       >= 1.1.0
 dateparser      >= 0.7.0
 distro          >= 1.4.0
 humanize        >= 0.5.1
