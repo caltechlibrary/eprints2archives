@@ -226,7 +226,6 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [aenum](https://pypi.org/project/aenum/) &ndash; advanced enumerations for Python
 * [appdirs](https://github.com/ActiveState/appdirs) &ndash; determine the appropriate app dirs on different OSes
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
-* [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) &ndash; an HTML parsing library
 * [distro](https://github.com/nir0s/distro) &ndash; get info about the OS distribution running the current computer
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
 * [ipdb](https://github.com/gotcha/ipdb) &ndash; the IPython debugger
