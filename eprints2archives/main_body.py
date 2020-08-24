@@ -192,14 +192,13 @@ class MainBody(Thread):
 
         # If the user wants specific records, check which ones actually exist.
         if self.wanted_list:
-            missing = list(set(self.wanted_list) - set(available))
+            missing = sorted(list(set(self.wanted_list) - set(available)), key = int)
             if missing and self.quit_on_error:
-                raise ValueError(f'{intcomma(len(missing))} of the requested'
-                                 + ' records do not exist on the server:'
-                                 + f' {", ".join(sorted(missing, key = int))}.')
+                raise ValueError(f'{intcomma(len(missing))} of the requested records'
+                                 + ' do not exist on the server: {", ".join(missing)}.')
             elif missing:
                 msg = (f"Of the records requested, the following don't exist and"
-                       + f" will be skipped: {', '.join(sorted(missing, key = int))}.")
+                       + f" will be skipped: {', '.join(missing)}.")
                 warn(msg)
                 self._report(msg)
             wanted = sorted(list(set(self.wanted_list) - set(missing)), key = int)
