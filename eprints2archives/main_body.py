@@ -43,6 +43,9 @@ from .ui import inform, warn, alert, alert_fatal
 
 _PARALLEL_THRESHOLD = 2
 
+_BAR = BarColumn(bar_width = None)
+'''All our progress bars use the same kind of column.'''
+
 
 # Class definitions.
 # .............................................................................
@@ -319,14 +322,13 @@ class MainBody(Thread):
         returned.  Otherwise, if no "id_subset" list is given, all /view/ids
         pages are returned.
         '''
-        bar = BarColumn(bar_width = None)
         header = '[green3]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
-        with Progress('[progress.description]{task.description}', bar) as progress:
-            task = progress.add_task(header, start = False)
-            progress.update(task)
+        with Progress('[progress.description]{task.description}', _BAR) as progress:
+            bar = progress.add_task(header, start = False)
+            progress.update(bar)
             urls = [server.front_page_url()] + server.view_urls(id_subset)
-            progress.start_task(task)
-            progress.update(task, advance = 100)
+            progress.start_task(bar)
+            progress.update(bar, advance = 100)
         return urls
 
 
@@ -360,30 +362,29 @@ class MainBody(Thread):
             inform('Force option given ⟹  adding URLs even if archives have copies.')
 
         # Helper function: send urls to given service & use progress bar.
-        def send_to_service(dest, pbar):
+        def send_to_service(dest, prog):
             num_added = 0
             num_skipped = 0
-            description = activity(dest, ServiceStatus.RUNNING)
-            task = pbar.add_task(description, total = num_urls, added = 0, skipped = 0)
-            notify = lambda s: pbar.update(task, description = activity(dest, s), refresh = True)
+            status_text = activity(dest, ServiceStatus.RUNNING)
+            row = prog.add_task(status_text, total = num_urls, added = 0, skipped = 0)
+            notify = lambda s: prog.update(row, description = activity(dest, s), refresh = True)
             for url in urls_to_send:
                 if __debug__: log(f'next for {dest}: {url}')
                 (added, num_existing) = dest.save(url, notify, self.force)
                 added_str = "added" if added else "skipped"
                 num_added += int(added)
                 num_skipped += int(not added)
-                pbar.update(task, advance = 1, added = num_added, skipped = num_skipped)
+                prog.update(row, advance = 1, added = num_added, skipped = num_skipped)
                 self._report(f'{url} ➜ {dest.name}: {added_str}')
                 raise_for_interrupts()
 
         # Start of actual procedure.
-        bar  = BarColumn(bar_width = None)
         info = TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped')
-        with Progress('[progress.description]{task.description}', bar, info) as pbar:
+        with Progress('[progress.description]{task.description}', _BAR, info) as prog:
             if __debug__: log(f'starting {self.threads} threads')
             if self.threads == 1:
                 # For 1 thread, avoid thread pool to make debugging easier.
-                results = [send_to_service(service, pbar) for service in self.dest]
+                results = [send_to_service(service, prog) for service in self.dest]
             else:
                 num_threads = min(num_dest, self.threads)
                 if __debug__: log(f'using {num_threads} threads to send records')
@@ -391,7 +392,7 @@ class MainBody(Thread):
                                                     thread_name_prefix = 'SendThread')
                 self._futures = []
                 for service in self.dest:
-                    future = self._executor.submit(send_to_service, service, pbar)
+                    future = self._executor.submit(send_to_service, service, prog)
                     self._futures.append(future)
                 [f.result() for f in self._futures]
         self._report(f'Finished sending {num_urls} URLs.')
@@ -407,10 +408,8 @@ class MainBody(Thread):
     def _gathered(self, loop, items_list, header):
         '''Return the collected results of running "loop" in multiple threads.'''
         num_items = len(items_list)
-        with Progress('[progress.description]{task.description}',
-                      BarColumn(bar_width = None),
-                      TextColumn('{task.completed}/' + intcomma(num_items) + ' records'),
-                      refresh_per_second = 5) as progress:
+        text = TextColumn('{task.completed}/' + intcomma(num_items) + ' records')
+        with Progress('[progress.description]{task.description}', _BAR, text) as progress:
             # Wrap up the progress bar updater as a lambda that we pass down.
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
