@@ -187,8 +187,7 @@ class MainBody(Thread):
         '''Performs the core work of this program.'''
         server = EPrintServer(self.api_url, self.user, self.password)
 
-        inform(f'Getting full EPrints index from [sea_green2]{server}[/] ...')
-        available = server.index()
+        available = self._eprints_index(server)
         if not available:
             raise NoContent(f'Received empty list from {server}.')
         self._report(f'EPrints server at {self.api_url} has {len(available)} records.')
@@ -312,6 +311,18 @@ class MainBody(Thread):
         server_name = f'[sea_green2]{server}[/]'
         header  = f'[green3]Gathering {description} from {server_name} ...'
         return self._gathered(record_values, items_list, header)
+
+
+    def _eprints_index(self, server):
+        '''Return the index from the server, getting it with a progress bar.'''
+        header = f'[green3]Getting full EPrints index from [sea_green2]{server}[/] ...'
+        with Progress('[progress.description]{task.description}', _BAR) as progress:
+            bar = progress.add_task(header, start = False)
+            progress.update(bar)
+            index = server.index()
+            progress.start_task(bar)
+            progress.update(bar, advance = 100)
+        return index
 
 
     def _eprints_general_urls(self, server, id_subset = None):
