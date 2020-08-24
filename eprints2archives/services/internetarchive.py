@@ -68,7 +68,7 @@ class InternetArchive(Service):
         timemap = self._timemap_for_url(url, notify)
         if timemap:
             mementos = timemap_mementos(timemap)
-            if __debug__: log(f'there are {len(mementos)} mementos for {url}')
+            if __debug__: log(f'{self.name} returned {len(mementos)} mementos for {url}')
             return (False, len(mementos))
         else:
             if __debug__: log(f'{self.name} returned no mementos for {url}')
@@ -92,6 +92,7 @@ class InternetArchive(Service):
             if __debug__: log('converting TimeMap to dict')
             return timemap_as_dict(response.text, skip_errors = True)
         elif isinstance(error, NoContent):
+            if __debug__: log(f'no content for {url}')
             return {}
         elif isinstance(error, RateLimitExceeded):
             if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
@@ -100,6 +101,7 @@ class InternetArchive(Service):
             notify(ServiceStatus.RUNNING)
             return self._timemap_for_url(url, notify)
         else:
+            if __debug__: log(f'got {error} for {url}')
             raise error
 
 
@@ -111,13 +113,14 @@ class InternetArchive(Service):
         action_url = 'https://web.archive.org/save/' + self._uniform(url)
         (response, error) = net('post', action_url, handle_rate = False, data = payload)
         if not error:
-            if __debug__: log('save request returned normally')
+            if __debug__: log(f'save request accepted by {self.name}')
             return True
         elif isinstance(error, RateLimitExceeded):
             if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
             notify(ServiceStatus.PAUSED_RATE_LIMIT)
             wait(_RATE_LIMIT_SLEEP)
             notify(ServiceStatus.RUNNING)
+            if __debug__: log(f'trying again recursively for {url}')
             return self._archive(url, notify)
         else:
             if __debug__: log(f'save request resulted in an error: {str(error)}')

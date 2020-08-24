@@ -114,7 +114,7 @@ class AuthHandler():
         tmp_pswd = password if password is not None else self._pswd
         if (tmp_user is None and tmp_pswd is None) and self._use_keyring:
             # We weren't given a user name, but we can look in the keyring.
-            if __debug__: log('getting saved login & password from keyring')
+            if __debug__: log(f'getting login & password for {server} from keyring')
             (_, k_user, k_pswd) = keyring_credentials(server)
             tmp_user = '' if k_user == _EMPTY else k_user
             tmp_pswd = '' if k_pswd == _EMPTY else k_pswd

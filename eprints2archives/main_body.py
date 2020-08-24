@@ -282,7 +282,7 @@ class MainBody(Thread):
         def record_values(items, update_progress):
             results = []
             for item in items:
-                if __debug__: log(f'getting data for {item}')
+                if __debug__: log(f'getting data for record {item}')
                 failure = None
                 try:
                     data = value_function(item)

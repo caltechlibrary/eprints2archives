@@ -41,7 +41,7 @@ _EPRINTS_XMLNS = 'http://eprints.org/ep2/data/2.0'
 class EPrintServer():
 
     def __init__(self, api_url, user, password):
-        if __debug__: log('creating EPrintsServer object for ', api_url)
+        if __debug__: log(f'creating EPrintsServer object for {api_url}')
         self._api_url    = api_url
         self._protocol   = scheme(self._api_url)
         self._netloc     = netloc(self._api_url)
