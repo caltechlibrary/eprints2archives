@@ -208,8 +208,7 @@ class MainBody(Thread):
 
         # Make sure to archive the front pages and some common pages.
 
-        inform('Looking through /view pages for URLs ...')
-        urls = self._eprints_general_urls(server)
+        urls = self._eprints_general_urls(server, self.wanted_list)
 
         # The basic URLs for EPrint pages can be constructed without doing
         # any record lookups -- all you need is id numbers from the index.
@@ -312,9 +311,23 @@ class MainBody(Thread):
         return self._gathered(record_values, items_list, header)
 
 
-    def _eprints_general_urls(self, server):
-        '''Return a list of commonly-available, high-level EPrints URLs.'''
-        return [server.front_page_url()] + server.view_urls()
+    def _eprints_general_urls(self, server, id_subset = None):
+        '''Return a list of commonly-available, high-level EPrints URLs.
+
+        If parameter value "id_subset" is not None, it is taken to be a list
+        of EPrint id's that is used to limit the pages under /view/ids to be
+        returned.  Otherwise, if no "id_subset" list is given, all /view/ids
+        pages are returned.
+        '''
+        bar = BarColumn(bar_width = None)
+        header = '[green3]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
+        with Progress('[progress.description]{task.description}', bar) as progress:
+            task = progress.add_task(header, start = False)
+            progress.update(task)
+            urls = [server.front_page_url()] + server.view_urls(id_subset)
+            progress.start_task(task)
+            progress.update(task, advance = 100)
+        return urls
 
 
     def _eprints_record_urls(self, server, records_list):
