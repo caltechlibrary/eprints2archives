@@ -94,8 +94,8 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
     (in seconds) on the network requests get or post. Other keyword arguments
     are passed to the network call.
     '''
-    def logurl(text):
-        if __debug__: log(f'{text} for {url}')
+    def addurl(text):
+        return f'{text} for {url}'
 
     failures = 0
     retries = 0
@@ -108,19 +108,18 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 # We don't care here.  See also this for a discussion:
                 # https://github.com/kennethreitz/requests/issues/2214
                 warnings.simplefilter("ignore", InsecureRequestWarning)
-                if __debug__: logurl(f'doing http {method}')
+                if __debug__: log(addurl(f'doing http {method}'))
                 func = getattr(session, method) if session else getattr(requests, method)
                 response = func(url, timeout = timeout, verify = False, **kwargs)
-                if __debug__: logurl(f'received {response}')
                 return response
         except (KeyboardInterrupt, UserCancelled) as ex:
-            if __debug__: logurl(f'network {method} interrupted by {str(ex)}')
+            if __debug__: log(addurl(f'network {method} interrupted by {str(ex)}'))
             raise
         except (MissingSchema, InvalidSchema, URLRequired, InvalidURL,
                 InvalidHeader, InvalidProxyURL, UnrewindableBodyError,
                 ContentDecodingError, ChunkedEncodingError) as ex:
             # Nothing more we can do about these.
-            if __debug__: logurl(f'exception {str(ex)}')
+            if __debug__: log(addurl(f'exception {str(ex)}'))
             raise
         except Exception as ex:
             if ex.args and len(ex.args) > 0:
@@ -129,14 +128,14 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                     raise
             # Problem might be transient.  Don't quit right away.
             failures += 1
-            if __debug__: logurl(f'exception (failure #{failures}): {str(ex)}')
+            if __debug__: log(addurl(f'exception (failure #{failures}): {str(ex)}'))
             # Record the first error we get, not the subsequent ones, because
             # in the case of network outages, the subsequent ones will be
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
-            if __debug__: logurl('pausing for 0.5 s')
+            if __debug__: log(addurl('pausing for 0.5 s'))
             wait(0.5)
         if failures >= _MAX_CONSECUTIVE_FAILS:
             # Pause with exponential back-off, reset failure count & try again.
@@ -144,13 +143,13 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 retries += 1
                 failures = 0
                 pause = 10 * retries * retries
-                if __debug__: logurl(f'pausing {pause} s due to consecutive failures')
+                if __debug__: log(addurl(f'pausing {pause} s due to consecutive failures'))
                 wait(pause)
             else:
-                if __debug__: logurl('exceeded max failures and max retries')
+                if __debug__: log(addurl('exceeded max failures and max retries'))
                 raise error
     if interrupted():
-        if __debug__: logurl('interrupted -- raising UserCancelled')
+        if __debug__: log(addurl('interrupted -- raising UserCancelled'))
         raise UserCancelled(f'Network request has been interrupted for {url}')
     else:
         # In theory, we should never reach this point.  If we do, then:
@@ -273,7 +272,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     elif not (200 <= code < 400):
         error = NetworkFailure(addurl(f'Unable to resolve {url}'))
     # The error msg will have had the URL added already; no need to do it here.
-    if __debug__: log('returning {}'.format(f'error {error}' if error else 'no error'))
+    if __debug__: log('returning {}'.format(f'{error}' if error else f'response for {url}'))
     return (resp, error)
 
 
