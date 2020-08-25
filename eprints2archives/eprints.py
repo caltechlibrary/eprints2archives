@@ -109,6 +109,29 @@ class EPrintServer():
         return self._base_url
 
 
+    def top_level_urls(self):
+        '''Return a list of the top-level URLs of this EPrints server.
+
+        This returns all URLs found by examining the HTML of the front page
+        of the server and then keeping only those located on the server and
+        not certain special URLs like CGI, css, relative links, and so on.
+        '''
+        top = self._base_url
+        if __debug__: log(f'getting from page from {self._base_url}')
+        (response, error) = net('get', top, timeout = 30)
+        if error:
+            if __debug__: log(f'got {type(error)} error for {top}')
+            return []
+        # Scrape the HTML.
+        doc = html.fromstring(response.text)
+        doc.make_links_absolute(top)
+        # Extract unique URLs, filtering out stuff we don't want.
+        keep = lambda u: u and u.startswith(top) and '/cgi' not in u and '#' not in u
+        urls = list(set(filter(keep, [x.get('href') for x in doc.cssselect('a')])))
+        if __debug__: log(f'found {len(urls)} top-level URLs: {urls}')
+        return urls
+
+
     def view_urls(self, id_subset = None):
         '''Return a list of URLs corresponding to pages under /view.
 
@@ -132,39 +155,39 @@ class EPrintServer():
         # Scrape the HTML to find the block of links to pages under /view.
         doc = html.fromstring(response.text)
         doc.make_links_absolute(view_base)
-        view_urls = [x.get('href') for x in doc.cssselect('div.ep_view_browse_list li a')]
+        view_urls = set(x.get('href') for x in doc.cssselect('div.ep_view_browse_list li a'))
         if __debug__: log(f'found {len(view_urls)} URLs under /view')
 
         # Iterate over each page under /view, to get links to their subpages.
-        subpage_urls = []
-        for view_subpage in view_urls:
-            (response, error) = net('get', view_subpage, timeout = 30)
+        subpage_urls = set()
+        for subpage in view_urls:
+            (response, error) = net('get', subpage, timeout = 30)
             if error:
-                if __debug__: log(f'got {type(error)} error for {view_subpage}')
+                if __debug__: log(f'got {type(error)} error for {subpage}')
                 continue
             doc = html.fromstring(response.text)
-            doc.make_links_absolute(view_subpage)
-            subpage_urls += [x.get('href') for x in doc.cssselect('div.ep_view_menu li a')]
+            doc.make_links_absolute(subpage)
+            subpage_urls |= set(x.get('href') for x in doc.cssselect('div.ep_view_menu li a'))
         if __debug__: log(f'collected {len(subpage_urls)} /view subpage URLs')
 
         # If id_subset is given, we ONLY keep pages of the form /view/X/N.html
         # where N is an identifier in id_subset.
         if id_subset:
-            kept_urls = []
+            kept_urls = set()
             for id in id_subset:
                 for url in subpage_urls:
                     # Year pages will have the form N.html too.  Skip them.
                     if '/view/year' not in url and url.endswith(f'/{id}.html'):
                         if __debug__: log(f'keeping {id}.html')
-                        kept_urls.append(url)
+                        kept_urls.add(url)
                         break
             if __debug__: log(f'returning subset {len(kept_urls)} /view/X/N.html URLs')
-            return kept_urls
+            return list(kept_urls)
         else:
             # No id_subset, so we return everything.
-            view_urls += subpage_urls
+            view_urls |= subpage_urls
             if __debug__: log(f'returning {len(view_urls)} /view subpage URLs')
-            return view_urls
+            return list(view_urls)
 
 
     def eprint_id_url(self, id_or_record, verify = True):
