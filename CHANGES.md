@@ -1,6 +1,16 @@
 Change log for REPOSITORY
 =========================
 
+Version 1.2.0
+-------------
+
+* In addition to the record pages, `eprints2archives` now also harvests general URLs from the server, including the top-level URL and `/view` and 2 levels of pages underneath it.  However, if a subset of records is requested, only gets those particular `/view/X/N.html` pages rather than all pages under `/view/X/`.
+* Minor improvements to some of the run-time status messages.
+* More progress bars!
+* Improvements to debug logging.
+* Some internal code refactoring.
+
+
 Version 1.1.0
 --------------
 
