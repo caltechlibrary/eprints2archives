@@ -91,14 +91,11 @@ By default, if an error occurs when requesting a record or value from the EPrint
 
 ### How URLs are constructed
 
-For a given EPrints server, `eprints2archives` begins by constructing some general URLs (where `SERVER` is the server hostname + post number, if any):
+The final list of EPrints URLs sent to web archiving sites depends on the command-line options given to `eprints2archives` as well as the URLs that actually exist on the server.
 
-* `https://SERVER`
-* `https://SERVER/view`
-* The set of pages `https://SERVER/view/X`, where each `X` is obtained by parsing the HTML of `https://SERVER/view` and extracting links to pages under `/view`
-* The set of pages `https://SERVER/view/X/Y`, where each `Y` is obtained by parsing the HTML of `https://SERVER/view/X` and extracting links
+#### _URLs for individual EPrints records_
 
-Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies that they exist on the EPrints server; thus, there may be up to 3 URLs sent to each public web archive for every EPrint record on a server.  The URLs are as follows, where `N` is the id number of the EPrint record:
+`eprints2archives` always tries to construct 3 URLs for every EPrint record and verifies that they exist on the EPrints server.  The URLs are as follows, where `N` is the id number of the EPrint record:
 
 1. `https://SERVER/N`
 2. `https://SERVER/id/eprint/N`
@@ -106,7 +103,21 @@ Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies
 
 The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  On the other hand, the value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
 
-Finally, the set of URLs collected by all of the steps above is deduplicated to produce a list of unique URLs to be sent to the destinations archives.
+
+#### _Additional general URLs_
+
+The general URLs gathered by `eprints2archives` depend on whether selected record identifiers are given (via the `-i` option) or filtering (via the options `-l` and/or `-s`) are in effect.
+
+If _no_ selection or filtering is applied (i.e., none of the options `-i`, `-l` or `-s` are given to `eprints2archives`), then `eprints2archives` gathers additional URLs as follows (where `SERVER` is the server hostname + post number, if any):
+
+* `https://SERVER`
+* `https://SERVER/view`
+* The set of pages `https://SERVER/view/X`, where each `X` is obtained by parsing the HTML of `https://SERVER/view` and extracting links to pages under `https://SERVER/view/`
+* The set of pages `https://SERVER/view/X/Y`, where each `Y` is obtained by parsing the HTML of `https://SERVER/view/X` and extracting links to pages under `https://SERVER/view/X`
+
+On the other hand, if selection and/or filtering _are_ in effect (i.e., if any of the options `-i`, `-l` and/or `-s` are used), then `eprints2archives` _only_ extracts the URLs `https://SERVER/view/X/N.html` for every EPrints identifier `N` selected or left after filtering, if such URLs exist on the server.  (E.g., Caltech EPrints servers all have `https://SERVER/view/ids/`, where every EPrint identifier `N` gets a page of the form `https://SERVER/view/ids/N.html`.  Other servers may have a similar section named something other than `/view/ids/`; `eprints2archives` avoids hardwired assumptions and simply looks for pages ending in `N.html` under `/view/X/`.)
+
+The general URLs from one of these two cases (the ones used if no selection or filter is applied, _or_ the ones used when selection and/or filtering are in effect) are combined with the URLs for individual EPrints records to produce the final set of URLs sent to web archiving destinations.
 
 
 ### How the destination is determined

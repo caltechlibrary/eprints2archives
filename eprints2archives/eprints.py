@@ -113,13 +113,18 @@ class EPrintServer():
         '''Return a list of URLs corresponding to pages under /view.
 
         If parameter value "id_subset" is not None, it is taken to be a list
-        of EPrint id's that is used to limit the pages under /view/ids to be
-        returned.  Otherwise, if no "id_subset" list is given, all /view/ids
-        pages are returned.
+        of EPrint id's that is used to limit the pages under to be
+        returned.  The values return will only consist of URLs of the form
+        /view/X/N, where X is a subpage under /view and N is the number of a
+        record found "id_subset", if such URLs exist on the server.  Otherwise,
+        if no "id_subset" list is given, all /view/ids/N pages are returned
+        (again, if they exist), along with all other pages found under /view
+        and the pages one level below each of those. (E.g., /view/year,
+        /view/year/yyyy.html, /view/person-az, /view/person-az/a.html, etc.)
         '''
-        # Start with the top-level one
+        # We need /view in any case.
         view_base = self._base_url + '/view/'
-        (response, error) = net('get', view_base)
+        (response, error) = net('get', view_base, timeout = 30)
         if error:
             if __debug__: log(f'got {type(error)} error for {view_base}')
             return []
@@ -130,39 +135,36 @@ class EPrintServer():
         view_urls = [x.get('href') for x in doc.cssselect('div.ep_view_browse_list li a')]
         if __debug__: log(f'found {len(view_urls)} URLs under /view')
 
-        # Iterate over each page to get the to subpages. One will be /view/ids.
-        # Handle it separately below if the user requested a subset of records.
-        if id_subset:
-            ids_subpage = next(u for u in view_urls if u.endswith('/view/ids/'))
-            view_urls = list(filter(lambda u: not u.endswith('/view/ids/'), view_urls))
+        # Iterate over each page under /view, to get links to their subpages.
         subpage_urls = []
         for view_subpage in view_urls:
-            (response, error) = net('get', view_subpage)
+            (response, error) = net('get', view_subpage, timeout = 30)
             if error:
                 if __debug__: log(f'got {type(error)} error for {view_subpage}')
                 continue
             doc = html.fromstring(response.text)
             doc.make_links_absolute(view_subpage)
             subpage_urls += [x.get('href') for x in doc.cssselect('div.ep_view_menu li a')]
-
-        # Now go back and do /view/ids/ subpages, being careful to keep only a
-        # subset of pages if we're only looking for a subset of records.
-        if id_subset:
-            (response, error) = net('get', ids_subpage)
-            if error:
-                if __debug__: log(f'got {type(error)} error for {ids_subpage}')
-            else:
-                if __debug__: log(f'getting subset of pages under {ids_subpage}')
-                doc = html.fromstring(response.text)
-                doc.make_links_absolute(ids_subpage)
-                page_urls = [x.get('href') for x in doc.cssselect('div.ep_view_menu li a')]
-                for id in id_subset:
-                    for url in page_urls:
-                        if f'/view/ids/{id}' in url:
-                            subpage_urls.append(url)
-                            break
         if __debug__: log(f'collected {len(subpage_urls)} /view subpage URLs')
-        return view_urls + subpage_urls
+
+        # If id_subset is given, we ONLY keep pages of the form /view/X/N.html
+        # where N is an identifier in id_subset.
+        if id_subset:
+            kept_urls = []
+            for id in id_subset:
+                for url in subpage_urls:
+                    # Year pages will have the form N.html too.  Skip them.
+                    if '/view/year' not in url and url.endswith(f'/{id}.html'):
+                        if __debug__: log(f'keeping {id}.html')
+                        kept_urls.append(url)
+                        break
+            if __debug__: log(f'returning subset {len(kept_urls)} /view/X/N.html URLs')
+            return kept_urls
+        else:
+            # No id_subset, so we return everything.
+            view_urls += subpage_urls
+            if __debug__: log(f'returning {len(view_urls)} /view subpage URLs')
+            return view_urls
 
 
     def eprint_id_url(self, id_or_record, verify = True):

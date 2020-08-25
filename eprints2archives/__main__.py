@@ -142,6 +142,41 @@ instead stop upon encountering a missing record, or missing file within a
 record, or similar errors. The default is to merely issue warnings when missing
 records are encountered because this is less frustrating for most use-cases.
 
+How URLs are constructed
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+eprints2archives always tries to construct 3 URLs for every EPrint record and
+verifies that they exist on the EPrints server. The URLs are as follows, where
+N is the id number of the EPrint record:
+
+  1. https://SERVER/N
+  2. https://SERVER/id/eprint/N
+  3. The value of the field official_url (if any) in the EPrint record.
+
+The first two typically go to the same page on an EPrint server, but web
+archiving services have no direct mechanism to indicate that a given URL is an
+alias or redirection for another, so they need to be sent as separate URLs. On
+the other hand, the value of official_url may be an entirely different URL,
+which may or may not go to the same location as one of the others.
+
+Next, if no selection or filtering is applied (i.e., none of the options -i,
+-l or -s are given to eprints2archives), eprints2archives gathers additional
+URLs as follows (where SERVER is the server hostname + post number, if any):
+
+  * https://SERVER
+  * https://SERVER/view
+  * The set of pages https://SERVER/view/X, where each X is obtained by
+    parsing the HTML of https://SERVER/view and extracting links to pages
+    under https://SERVER/view/
+  * The set of pages https://SERVER/view/X/Y, where each Y is obtained by
+    parsing the HTML of https://SERVER/view/X and extracting links to pages
+    under https://SERVER/view/X
+
+On the other hand, if selection and/or filtering _are_ in effect (i.e., if any
+of the options -i, -l and/or -s are used), then eprints2archives ONLY
+extracts the URLs https://SERVER/view/X/N.html for every EPrints identifier N
+selected or left after filtering (if such URLs exist on the server).
+
 Specifying where to send records
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
