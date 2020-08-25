@@ -329,15 +329,18 @@ class MainBody(Thread):
         '''Return a list of commonly-available, high-level EPrints URLs.
 
         If parameter value "id_subset" is not None, it is taken to be a list
-        of EPrint id's that is used to limit the pages under /view/ids to be
-        returned.  Otherwise, if no "id_subset" list is given, all /view/ids
+        of EPrint id's that is used to limit the pages under /view to be
+        returned.  Otherwise, if no "id_subset" list is given, all /view
         pages are returned.
         '''
         header = '[green3]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
         with Progress('[progress.description]{task.description}', _BAR) as progress:
             bar = progress.add_task(header, start = False)
             progress.update(bar)
-            urls = [server.front_page_url()] + server.view_urls(id_subset)
+            if id_subset:
+                urls = server.view_urls(id_subset)
+            else:
+                urls = list(set(server.top_level_urls() + server.view_urls()))
             progress.start_task(bar)
             progress.update(bar, advance = 100)
         return urls
