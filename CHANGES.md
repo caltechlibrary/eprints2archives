@@ -5,6 +5,7 @@ Version 1.2.0
 -------------
 
 * In addition to the record pages, `eprints2archives` now also harvests general URLs from the server, including the top-level URL and `/view` and 2 levels of pages underneath it.  However, if a subset of records is requested, only gets those particular `/view/X/N.html` pages rather than all pages under `/view/X/`.
+* Now tries to add `https://` or `http://` if the user forgets to provide it, and also removes `/eprint` and adds `/rest` if needed.  This makes it possible for the user to just provide a host name and `eprints2archives` will figure out the rest.
 * Minor improvements to some of the run-time status messages.
 * More progress bars!
 * Improvements to debug logging.
