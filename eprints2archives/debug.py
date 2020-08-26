@@ -93,3 +93,20 @@ def log(s, *other_args):
             file   = path.basename(frame.f_code.co_filename)
             logger = logging.getLogger(__package__)
             logger.debug(f'{file}:{lineno} {func}() -- ' + s.format(*other_args))
+
+
+def logr(s):
+    '''Logs a debug message. 's' is taken as-is; unlike log(...), logr(...)
+    does not apply format to the string.
+    '''
+    if __debug__:
+        # This test for the level may seem redundant, but it's not: it prevents
+        # the string format from always being performed if logging is not
+        # turned on and the user isn't running Python with -O.
+        if getattr(sys.modules[__package__], '_debugging'):
+            frame  = inspect.currentframe().f_back
+            func   = frame.f_code.co_name
+            lineno = frame.f_lineno
+            file   = path.basename(frame.f_code.co_filename)
+            logger = logging.getLogger(__package__)
+            logger.debug(f'{file}:{lineno} {func}() -- ' + s)
