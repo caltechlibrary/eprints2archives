@@ -23,7 +23,7 @@ import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
 from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime, timestamp
-from   .debug import set_debug, log
+from   .debug import set_debug, log, logr
 from   .exceptions import *
 from   .exit_codes import ExitCode
 from   .files import readable
@@ -313,9 +313,10 @@ Command-line options summary
         else:
             exit_code = ExitCode.exception
             from traceback import format_exception
-            ex_type = str(exception[1])
+            msg = str(exception[1])
             details = ''.join(format_exception(*exception))
-            if __debug__: log(f'Exception: {ex_type}\n{details}')
+            if __debug__: logr(f'Exception: {msg}\n{details}')
+            import pdb; pdb.set_trace()
             if debugging:
                 import pdb; pdb.set_trace()
             if manager:
