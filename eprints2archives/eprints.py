@@ -21,7 +21,7 @@ import os
 from   os import path
 import shutil
 
-from .data_helpers import parse_datetime
+from .data_helpers import parse_datetime, unique
 from .debug import log
 from .exceptions import *
 from .network import net, hostname, scheme, netloc
@@ -126,8 +126,9 @@ class EPrintServer():
         doc = html.fromstring(response.text)
         doc.make_links_absolute(top)
         # Extract unique URLs, filtering out stuff we don't want.
-        keep = lambda u: u and u.startswith(top) and '/cgi' not in u and '#' not in u
-        urls = list(set(filter(keep, [x.get('href') for x in doc.cssselect('a')])))
+        skip = ['/cgi', '#', 'css']
+        keep = lambda u: u and u.startswith(top) and not any(x in u for x in skip)
+        urls = unique(filter(keep, [x.get('href') for x in doc.cssselect('a')]))
         if __debug__: log(f'found {len(urls)} top-level URLs: {urls}')
         return urls
 

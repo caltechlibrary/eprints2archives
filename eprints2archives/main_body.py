@@ -340,7 +340,7 @@ class MainBody(Thread):
             if id_subset:
                 urls = server.view_urls(id_subset)
             else:
-                urls = list(set(server.top_level_urls() + server.view_urls()))
+                urls = unique(server.top_level_urls() + server.view_urls())
             progress.start_task(bar)
             progress.update(bar, advance = 100)
         return urls
