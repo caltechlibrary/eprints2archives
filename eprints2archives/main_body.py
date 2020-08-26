@@ -33,7 +33,7 @@ from .exceptions import *
 from .exit_codes import ExitCode
 from .interruptions import interrupted, raise_for_interrupts
 from .files import writable
-from .network import network_available, hostname, netloc
+from .network import network_available, hostname, scheme, netloc
 from .services import ServiceStatus, service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
 
@@ -124,10 +124,21 @@ class MainBody(Thread):
 
         # We can't do anything without the EPrints server URL.
         # We remove any ending /eprint because we add it separately when needed.
-        # For convenience, we add /rest if the user forgot.
+        # For convenience, we add /rest if the user forgot.  Ditto for https://.
         if self.api_url is None:
             alert_fatal(f'Must provide an EPrints API URL. {hint}')
             raise CannotProceed(ExitCode.bad_arg)
+        if not scheme(self.api_url):
+            # Is their server at https://, or http://?
+            if __debug__: log(f'trying to add https or http to {self.api_url}')
+            for prefix in ['https://', 'http://']:
+                candidate = prefix + self.api_url
+                try:
+                    (response, error) = net('head', candidate)
+                except:
+                    continue
+                self.api_url = candidate
+                break
         if self.api_url.endswith('/eprint'):
             self.api_url = self.api_url[0 : self.api_url.rfind('/eprint')]
         if not self.api_url.endswith('/rest'):
@@ -135,6 +146,7 @@ class MainBody(Thread):
         if not validators.url(self.api_url):
             alert_fatal(f'The given API URL appears invalid: {self.api_url}')
             raise CannotProceed(ExitCode.bad_arg)
+        if __debug__: log(f'using {self.api_url} as API endpoint')
 
         if self.lastmod:
             try:
