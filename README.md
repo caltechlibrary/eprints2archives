@@ -235,8 +235,11 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 
 * [aenum](https://pypi.org/project/aenum/) &ndash; advanced enumerations for Python
 * [appdirs](https://github.com/ActiveState/appdirs) &ndash; determine the appropriate app dirs on different OSes
+* [cssselect](https://pypi.org/project/cssselect/) &ndash; `lxml` add-on to parse CSS3 selectors 
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
+* [dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [distro](https://github.com/nir0s/distro) &ndash; get info about the OS distribution running the current computer
+* [httpx](https://www.python-httpx.org) &ndash; Python HTTP client library that supports HTTP/2
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
 * [ipdb](https://github.com/gotcha/ipdb) &ndash; the IPython debugger
 * [keyring](https://github.com/jaraco/keyring) &ndash; access the system keyring service from Python
@@ -244,9 +247,9 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [plac](http://micheles.github.io/plac/) &ndash; a command line argument parser
 * [pydash]() &ndash; kitchen sink of Python utility libraries for doing “stuff” 
 * [pypubsub](https://github.com/schollii/pypubsub) &ndash; a publish-and-subscribe message-passing library for Python
-* [requests](http://docs.python-requests.org) &ndash; an HTTP library for Python
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
+* [tldextract](https://github.com/john-kurkowski/tldextract) &ndash; module to parse domains from URLs
 * [tzlocal](https://github.com/regebro/tzlocal) &ndash; determine your local time zone
 * [urllib3](https://urllib3.readthedocs.io/en/latest/) &ndash; HTTP client library for Python
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python
