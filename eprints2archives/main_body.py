@@ -123,30 +123,9 @@ class MainBody(Thread):
         hint = f'(Hint: use {"/" if sys.platform.startswith("wi") else "-"}h for help.)'
 
         # We can't do anything without the EPrints server URL.
-        # We remove any ending /eprint because we add it separately when needed.
-        # For convenience, we add /rest if the user forgot.  Ditto for https://.
         if self.api_url is None:
             alert_fatal(f'Must provide an EPrints API URL. {hint}')
             raise CannotProceed(ExitCode.bad_arg)
-        if not scheme(self.api_url):
-            # Is their server at https://, or http://?
-            if __debug__: log(f'trying to add https or http to {self.api_url}')
-            for prefix in ['https://', 'http://']:
-                candidate = prefix + self.api_url
-                try:
-                    (response, error) = net('head', candidate)
-                except:
-                    continue
-                self.api_url = candidate
-                break
-        if self.api_url.endswith('/eprint'):
-            self.api_url = self.api_url[0 : self.api_url.rfind('/eprint')]
-        if not self.api_url.endswith('/rest'):
-            self.api_url += '/rest'
-        if not validators.url(self.api_url):
-            alert_fatal(f'The given API URL appears invalid: {self.api_url}')
-            raise CannotProceed(ExitCode.bad_arg)
-        if __debug__: log(f'using {self.api_url} as API endpoint')
 
         if self.lastmod:
             try:
@@ -164,15 +143,12 @@ class MainBody(Thread):
         if self.dest == 'all':
             self.dest = service_interfaces()
         else:
-            destination_list = []
-            for destination in self.dest.split(','):
-                service = service_by_name(destination)
-                if service:
-                    destination_list.append(service)
-                else:
-                    alert_fatal('Unknown destination service "{}"', destination)
-                    raise CannotProceed(ExitCode.bad_arg)
-            self.dest = destination_list
+            destination_list = self.dest.split(',')
+            self.dest = [service_by_name(d) for d in destination_list]
+            if None in self.dest:
+                bad_dest = destination_list[self.dest.index(None)]
+                alert_fatal(f'Unknown destination service "{bad_dest}". {hint}')
+                raise CannotProceed(ExitCode.bad_arg)
 
         host = netloc(self.api_url)
         self.user, self.password, cancel = self.auth_handler.credentials(host)
@@ -189,7 +165,6 @@ class MainBody(Thread):
         if self.report_file:
             if writable(self.report_file):
                 inform(f'A report will be written to "{self.report_file}"')
-                self._report(f'eprints2archives starting {timestamp()}.', True)
             else:
                 alert_fatal(f'Cannot write to file "{self.report_file}"')
                 raise CannotProceed(ExitCode.file_error)
@@ -197,8 +172,9 @@ class MainBody(Thread):
 
     def _do_main_work(self):
         '''Performs the core work of this program.'''
-        server = EPrintServer(self.api_url, self.user, self.password)
+        self._report(f'eprints2archives starting {timestamp()}.', True)
 
+        server = EPrintServer(self.api_url, self.user, self.password)
         available = self._eprints_index(server)
         if not available:
             raise NoContent(f'Received empty list from {server}.')
