@@ -177,7 +177,7 @@ class ArchiveToday(Service):
                 notify(ServiceStatus.PAUSED_RATE_LIMIT)
                 wait(_RATE_LIMIT_SLEEP)
                 notify(ServiceStatus.RUNNING)
-                return self._timemap_for_url(url)
+                return self._timemap_for_url(url, notify)
         else:
             raise error
 
