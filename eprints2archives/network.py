@@ -119,9 +119,9 @@ def timed_request(method, url, client = None, **kwargs):
             raise
         except (httpx.InvalidURL, httpx.CookieConflict, httpx.StreamError,
                 httpx.ProxyError, httpx.DecodingError, httpx.ProtocolError,
-                httpx.UnsupportedProtocol, httpx.LocalProtocolError,
                 httpx.RequestBodyUnavailable, httpx.TooManyRedirects) as ex:
-            # Nothing more we can do about these, so don't attempt retries.
+            # Probably indicates a deeper issue.  Don't do our lengthy retry
+            # sequence, but net() will still do its usual one-time retry.
             if __debug__: log(addurl(f'exception {str(ex)}'))
             raise
         except Exception as ex:
@@ -189,23 +189,21 @@ def net(method, url, client = None, handle_rate = True,
     resp = None
     try:
         resp = timed_request(method, url, client, allow_redirects = True, **kwargs)
-    except httpx.NetworkError as ex:
+    except (httpx.NetworkError, httpx.ProtocolError) as ex:
         if __debug__: log(addurl(f'got network exception: {str(ex)}'))
         if not network_available():
             if __debug__: log(addurl('returning NetworkFailure'))
             return (resp, NetworkFailure(addurl('Network connectivity failure')))
-        elif recursing >= _MAX_RECURSIVE_CALLS:
-            if __debug__: log(addurl('returning NetworkFailure'))
-            return (resp, NetworkFailure(addurl('Too many errors')))
         elif recursing == 0:
             # Problem may be transient. Briefly pause & retry once.
-            if __debug__: log(addurl('waiting & retrying once more due to timeout'))
+            # Note: this is different from getting a status code 429.
+            if __debug__: log(addurl('briefly waiting & retrying once'))
             wait(1)
             return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
         else:
             # We've been here before. Time to bail.
-            if __debug__: log(addurl('returning ServiceFailure'))
-            return (resp, ServiceFailure(addurl('Timed out communicating with server')))
+            if __debug__: log(addurl('failed > 1 times -- returning ServiceFailure'))
+            return (resp, ServiceFailure(addurl('Network or server error {str(ex)}')))
     except Exception as ex:
         if __debug__: log(addurl(f'returning exception: {str(ex)}'))
         return (resp, ex)
