@@ -48,8 +48,8 @@ def service_interfaces():
 
 
 def service_by_name(name):
-    '''Return the object corresponding to the given service name.'''
-    if name.lower() in SERVICE_NAMES:
-        return KNOWN_SERVICES[name.lower()]
-    else:
-        return None
+    '''Return the object corresponding to the given service "name".
+
+    If "name" is is not a known service name, the value None is returned.
+    '''
+    return KNOWN_SERVICES.get(name.lower(), None)
