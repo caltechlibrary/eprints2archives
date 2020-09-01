@@ -243,6 +243,7 @@ class EPrintServer():
         if verify:
             (response, error) = self._net('head', url)
             if error:
+                if __debug__: log(f'failed to get /id from server for {id_or_record}')
                 return None
         return url
 
@@ -278,6 +279,7 @@ class EPrintServer():
         if verify:
             (response, error) = self._net('head', url)
             if error:
+                if __debug__: log(f'failed to get /id from server for {id_or_record}')
                 return None
         return url
 
