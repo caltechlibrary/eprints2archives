@@ -491,6 +491,6 @@ def activity(dest, status):
     elif status == ServiceStatus.PAUSED_ERROR:
         return f'[orange1]Paused due to {name} error -- will retry ...   '
     elif status == ServiceStatus.UNAVAILABLE:
-        return f'[red]No response from {name} servers ...                   '
+        return f'[red]No response from {name} servers ...            '
     else:
         return f'[red]Unknown status                                 '
