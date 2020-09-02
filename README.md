@@ -155,10 +155,10 @@ The following table summarizes all the command line options available. (Note: on
 | `-a`_A_   | `--api-url`_A_   | Use _A_ as the server's REST API URL | | ⚑ |
 | `-d`_D_   | `--dest`_D_      | Send to destination service(s) _D_ | Send to all | |
 | `-e`      | `--error-out`   | Stop if encounter missing records | Keep going | |
-| `-f`      | `--force`        | Send every record even if copy exists | Skip already-archived records | |
-| `-i`_I_   | `--id-list`_I_   | Records to get (can be a file name) | Fetch all records from the server | |
+| `-f`      | `--force`        | Send each record even if copy exists | Skip already-archived records | |
+| `-i`_I_   | `--id-list`_I_   | Records to get (can be a file name) | Fetch all EPrints records | |
 | `-l`_L_   | `--lastmod`_L_   | Filter by last-modified date/time | Don't filter by date/time | |
-| `-q`      | `--quiet`        | Don't print info messages while working | Be chatty while working | |
+| `-q`      | `--quiet`        | Don't print general info messages | Be chatty while working | |
 | `-s`_S_   | `--status`_S_    | Filter by status(s) in _S_ | Don't filter by status | |
 | `-u`_U_   | `--user`_U_      | User name for EPrints server login | No user name |
 | `-p`_P_   | `--password`_U_  | Password for EPrints proxy login | No password |
