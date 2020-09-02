@@ -20,3 +20,4 @@ class ServiceStatus(Enum):
     RUNNING           = 1               # Currently uploading.
     PAUSED_RATE_LIMIT = 2               # Paused due to hitting a rate limit.
     PAUSED_ERROR      = 3               # Paused due to an error.
+    UNAVAILABLE       = 4               # Server doesn't want to let us use it.

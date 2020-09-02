@@ -91,14 +91,12 @@ By default, if an error occurs when requesting a record or value from the EPrint
 
 ### How URLs are constructed
 
-For a given EPrints server, `eprints2archives` begins by constructing some general URLs (where `SERVER` is the server hostname + post number, if any):
+The list of EPrints URLs sent to web archiving sites depends on the command-line options given to `eprints2archives` as well as the URLs that actually exist on the server.  In a nutshell, if _not_ given a list of identifiers or filtering criteria, it will send URLs for every record along with the URLs of some general pages; by contrast, if the list of records is restricted somehow (by the use of `-i`, `-l`, and/or `-s`), `eprints2archives` will _only_ send URLs related to the records identified.
 
-* `https://SERVER`
-* `https://SERVER/view`
-* The set of pages `https://SERVER/view/X`, where each `X` is obtained by parsing the HTML of `https://SERVER/view` and extracting links to pages under `/view`
-* The set of pages `https://SERVER/view/X/Y`, where each `Y` is obtained by parsing the HTML of `https://SERVER/view/X` and extracting links
 
-Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies that they exist on the EPrints server; thus, there may be up to 3 URLs sent to each public web archive for every EPrint record on a server.  The URLs are as follows, where `N` is the id number of the EPrint record:
+#### _URLs for individual EPrints records_
+
+`eprints2archives` always tries to construct 3 URLs for every EPrint record and verifies that they exist on the EPrints server.  The URLs are as follows, where `N` is the id number of the EPrint record:
 
 1. `https://SERVER/N`
 2. `https://SERVER/id/eprint/N`
@@ -106,7 +104,19 @@ Next, for every EPrint record, `eprints2archives` constructs 3 URLs and verifies
 
 The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  On the other hand, the value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
 
-Finally, the set of URLs collected by all of the steps above is deduplicated to produce a list of unique URLs to be sent to the destinations archives.
+
+#### _Additional general URLs_
+
+If _no_ selection or filtering is applied (i.e., none of the options `-i`, `-l` or `-s` are given to `eprints2archives`), then `eprints2archives` gathers additional URLs as follows (where `SERVER` is the server hostname + post number, if any):
+
+* `https://SERVER`
+* `https://SERVER/view`
+* The set of pages `https://SERVER/view/X`, where each `X` is obtained by parsing the HTML of `https://SERVER/view` and extracting links to pages under `https://SERVER/view/`
+* The set of pages `https://SERVER/view/X/Y`, where each `Y` is obtained by parsing the HTML of `https://SERVER/view/X` and extracting links to pages under `https://SERVER/view/X`
+
+On the other hand, if selection and/or filtering _are_ in effect (i.e., if any of the options `-i`, `-l`, and/or `-s` are used), then `eprints2archives` _only_ extracts the URLs `https://SERVER/view/X/N.html` for every EPrints identifier `N` that is selected via `-i` and left after filtering with `-l` and `-s`, if such URLs exist on the server.  (E.g., Caltech EPrints servers have a page at `https://SERVER/view/ids/`, containing every public EPrint identifier `N`  linked to a page of the form `https://SERVER/view/ids/N.html`.  Other servers may have a similar section named something other than `/view/ids/`; `eprints2archives` avoids hardwired assumptions and simply looks for pages ending in `N.html` under `/view/X/`.)
+
+The general URLs from one of these two cases (the ones used if no selection or filter is applied, _or_ the ones used when selection and/or filtering are in effect) are combined with the URLs for individual EPrints records to produce the final set of URLs sent to web archiving destinations.
 
 
 ### How the destination is determined
@@ -175,7 +185,7 @@ This program exits with a return code of 0 if no problems are encountered.  It r
 Known issues and limitations
 ----------------------------
 
-Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 2 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
+Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 6 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
 
 
 Relationships to other similar tools
@@ -187,9 +197,9 @@ The Internet Archive itself [offers multiple ways of submitting content](https:/
 
 Many institutions use IA's [Archive-It](https://help.archive.org/hc/en-us/articles/360004651612-Archive-It-Information) service, and Archive-It can be used to crawl EPrints server pages.  In principle, this can capture an EPrints server site more fully than `eprints2archives` because `eprints2archives` only follows specific common links and pages, and misses any custom data views or additional pages (including "About" pages) that may be present on an EPrints server.  Nevertheless, `eprints2archives` can be useful even for sites that use Archive-It because it asks the EPrints server itself about its records and gets URLs (such as the `official_url` values) that may not be mentioned in the EPrints record views (and thus would be missed by Archive-It's "on the outside looking in" approach).  Since `eprints2archives` by default does not send URLs that are already present in archiving destinations, it can be used in conjunction with Archive-It as a secondary or backup scheme.
 
-A number of third-party archiving tools exist for working with web archives.  One of the few that can target multiple destination archives besides IA is [Archive Now](https://github.com/oduwsdl/archivenow).  It partly inspired the creation of `eprints2archives`.  Archive Now's code for interfacing to web archives also served as initial starting points for figuring out to do the same in `eprints2archives`.  On the other hand, `eprints2archives` is more special-purpose (being aimed at extracting content from EPrints servers), and has more advanced capabilities such as handling rate limits, pause-and-retry handling of errors, and use of parallel threads.
+A number of third-party archiving tools exist for sending URLs to web archives.  One of the few that can target other archives besides IA is [Archive Now](https://github.com/oduwsdl/archivenow).  It partly inspired the creation of `eprints2archives`.  Archive Now's code for interfacing to web archives also served as initial starting points for figuring out to do the same in `eprints2archives`.  In terms of functionality, `eprints2archives` is more special-purpose (being aimed at extracting content from EPrints servers), and has more advanced capabilities such as handling rate limits, pause-and-retry handling of errors, and use of parallel threads.
 
-Most similar tools work only with the [Internet Archive's Wayback Machine](https://archive.org/web/). The Ruby-based [WaybackArchiver](https://github.com/buren/wayback_archiver) can crawl a site given a URL or a sitemap and then send the URLs to IA in parallel; however, it does not appear to attempt to recover from as many error situations as `eprints2archives`, and of course, lacks its EPrints-specific features.  [Waybackpy](https://github.com/akamhy/waybackpy) is a simpler tool designed to interact with IA, and while it can submit URLs to be saved, it lacks other capabilities of `eprints2archives` such as automatically handling rate limits and error retries, as well as not being designed for extracting content from EPrints servers.  Some other similar but much simpler and less advanced IA-specific tools include [savepagenow](https://github.com/pastpages/savepagenow), [ia_wayback](https://github.com/bitsgalore/iawayback), [Wayback Sitemap Archive](https://github.com/plibither8/wayback-sitemap-archive), [Save to the Wayback Machine](https://github.com/VerifiedJoseph/Save-to-the-Wayback-Machine), the [wayback api](https://github.com/httpreserve/wayback) from HTTPreserve.
+Most archiving tools work only with the [Internet Archive's Wayback Machine](https://archive.org/web/). The Ruby-based [WaybackArchiver](https://github.com/buren/wayback_archiver) can crawl a site given a URL or a sitemap and then send URLs to IA; however, it does not appear to attempt to recover from as many error situations as `eprints2archives`, and of course, lacks its EPrints-specific features.  [Waybackpy](https://github.com/akamhy/waybackpy) is a simpler tool designed to interact with IA, and while it can submit URLs to be saved, it lacks other capabilities of `eprints2archives` such as automatically handling rate limits and error retries, as well as not being designed for extracting content from EPrints servers.  Some other similar but much simpler and less advanced IA-specific tools include [savepagenow](https://github.com/pastpages/savepagenow), [ia_wayback](https://github.com/bitsgalore/iawayback), [Wayback Sitemap Archive](https://github.com/plibither8/wayback-sitemap-archive), [Save to the Wayback Machine](https://github.com/VerifiedJoseph/Save-to-the-Wayback-Machine), and the [wayback api](https://github.com/httpreserve/wayback) from HTTPreserve.
 
 [archive.today](https://github.com/dhamaniasad/archive.today) is one of the few tools for working with archives other than IA.  It is a simple command-line tool for sending content to and downloading from Archive.Today.
 
@@ -225,8 +235,11 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 
 * [aenum](https://pypi.org/project/aenum/) &ndash; advanced enumerations for Python
 * [appdirs](https://github.com/ActiveState/appdirs) &ndash; determine the appropriate app dirs on different OSes
+* [cssselect](https://pypi.org/project/cssselect/) &ndash; `lxml` add-on to parse CSS3 selectors 
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
+* [dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [distro](https://github.com/nir0s/distro) &ndash; get info about the OS distribution running the current computer
+* [httpx](https://www.python-httpx.org) &ndash; Python HTTP client library that supports HTTP/2
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
 * [ipdb](https://github.com/gotcha/ipdb) &ndash; the IPython debugger
 * [keyring](https://github.com/jaraco/keyring) &ndash; access the system keyring service from Python
@@ -234,9 +247,9 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [plac](http://micheles.github.io/plac/) &ndash; a command line argument parser
 * [pydash]() &ndash; kitchen sink of Python utility libraries for doing “stuff” 
 * [pypubsub](https://github.com/schollii/pypubsub) &ndash; a publish-and-subscribe message-passing library for Python
-* [requests](http://docs.python-requests.org) &ndash; an HTTP library for Python
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
+* [tldextract](https://github.com/john-kurkowski/tldextract) &ndash; module to parse domains from URLs
 * [tzlocal](https://github.com/regebro/tzlocal) &ndash; determine your local time zone
 * [urllib3](https://urllib3.readthedocs.io/en/latest/) &ndash; HTTP client library for Python
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python

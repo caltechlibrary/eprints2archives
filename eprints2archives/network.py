@@ -14,18 +14,11 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-import http.client
-from   http.client import responses as http_responses
-from   os import stat
-import requests
-from   requests.packages.urllib3.exceptions import InsecureRequestWarning
-from   requests.exceptions import *
+import httpx
 import socket
 import ssl
+import tldextract
 import urllib
-from   urllib import request
-import urllib3
-import warnings
 
 from .debug import log
 from .exceptions import *
@@ -71,8 +64,12 @@ def network_available(address = "8.8.8.8", port = 53, timeout = 5):
 
 
 def hostname(url):
-    parsed = urllib.parse.urlsplit(url)
-    return parsed.hostname
+    if url.startswith('http'):
+        parsed = urllib.parse.urlsplit(url)
+        return parsed.hostname
+    else:
+        # urllib.parse doesn't provide a hostname.  Try a different way.
+        return '.'.join(part for part in tldextract.extract(url) if part)
 
 
 def scheme(url):
@@ -82,61 +79,62 @@ def scheme(url):
 
 def netloc(url):
     parsed = urllib.parse.urlsplit(url)
-    return parsed.netloc
+    if parsed.netloc:
+        return parsed.netloc
+    elif not url.startswith('http') and '//' not in url:
+        # Add a fake "http://" so that urllib.parse can figure out the netloc.
+        parsed = urllib.parse.urlsplit('http://' + url)
+        return parsed.netloc
+    else:
+        # Last-ditch effort.
+        return parsed.path
 
 
-def timed_request(method, url, session = None, timeout = 20, **kwargs):
+def timed_request(method, url, client = None, **kwargs):
     '''Perform a network access, automatically retrying if exceptions occur.
 
     The value given to parameter "method" must be a string chosen from among
-    valid HTTP methods, such as "get", "post", or "head".  If "session" is
-    not None, it is used as a requests.Session object. "Timeout" is a timeout
-    (in seconds) on the network requests get or post. Other keyword arguments
-    are passed to the network call.
+    valid HTTP methods, such as "get", "post", or "head".  If "client" is
+    not None, it is used as an httpx.Client object. Other keyword arguments
+    are passed to the network method.
     '''
-    def logurl(text):
-        if __debug__: log(f'{text} for {url}')
+    def addurl(text):
+        return f'{text} for {url}'
+
+    if client is None:
+        timeout = httpx.Timeout(connect = 15, read = 15, write = 15)
+        client = httpx.Client(timeout = timeout, http2 = True, verify = False)
 
     failures = 0
     retries = 0
     error = None
     while failures < _MAX_CONSECUTIVE_FAILS and not interrupted():
         try:
-            with warnings.catch_warnings():
-                # The underlying urllib3 library used by the Python requests
-                # module will issue a warning about missing SSL certificates.
-                # We don't care here.  See also this for a discussion:
-                # https://github.com/kennethreitz/requests/issues/2214
-                warnings.simplefilter("ignore", InsecureRequestWarning)
-                if __debug__: logurl(f'doing http {method}')
-                func = getattr(session, method) if session else getattr(requests, method)
-                response = func(url, timeout = timeout, verify = False, **kwargs)
-                if __debug__: logurl(f'received {response}')
-                return response
+            if __debug__: log(addurl(f'doing http {method}'))
+            func = getattr(client, method)
+            response = func(url, **kwargs)
+            return response
         except (KeyboardInterrupt, UserCancelled) as ex:
-            if __debug__: logurl(f'network {method} interrupted by {str(ex)}')
+            if __debug__: log(addurl(f'network {method} interrupted by {str(ex)}'))
             raise
-        except (MissingSchema, InvalidSchema, URLRequired, InvalidURL,
-                InvalidHeader, InvalidProxyURL, UnrewindableBodyError,
-                ContentDecodingError, ChunkedEncodingError) as ex:
-            # Nothing more we can do about these.
-            if __debug__: logurl(f'exception {str(ex)}')
+        except (httpx.InvalidURL, httpx.CookieConflict, httpx.StreamError,
+                httpx.ProxyError, httpx.DecodingError, httpx.ProtocolError,
+                httpx.RequestBodyUnavailable, httpx.TooManyRedirects) as ex:
+            # Probably indicates a deeper issue.  Don't do our lengthy retry
+            # sequence, but net() will still do its usual one-time retry.
+            if __debug__: log(addurl(f'exception {str(ex)}'))
             raise
         except Exception as ex:
-            if ex.args and len(ex.args) > 0:
-                if isinstance(ex.args[0], urllib3.exceptions.MaxRetryError):
-                    # No point in retrying if we get this.
-                    raise
             # Problem might be transient.  Don't quit right away.
             failures += 1
-            if __debug__: logurl(f'exception (failure #{failures}): {str(ex)}')
+            if __debug__: log(addurl(f'exception (failure #{failures}): {str(ex)}'))
             # Record the first error we get, not the subsequent ones, because
             # in the case of network outages, the subsequent ones will be
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
             # Pause briefly b/c it's rarely a good idea to retry immediately.
-            if __debug__: logurl('pausing for 0.5 s')
+            if __debug__: log(addurl('pausing for 0.5 s'))
             wait(0.5)
         if failures >= _MAX_CONSECUTIVE_FAILS:
             # Pause with exponential back-off, reset failure count & try again.
@@ -144,20 +142,20 @@ def timed_request(method, url, session = None, timeout = 20, **kwargs):
                 retries += 1
                 failures = 0
                 pause = 10 * retries * retries
-                if __debug__: logurl(f'pausing {pause} s due to consecutive failures')
+                if __debug__: log(addurl(f'pausing {pause} s due to consecutive failures'))
                 wait(pause)
             else:
-                if __debug__: logurl('exceeded max failures and max retries')
+                if __debug__: log(addurl('exceeded max failures and max retries'))
                 raise error
     if interrupted():
-        if __debug__: logurl('interrupted -- raising UserCancelled')
+        if __debug__: log(addurl('interrupted -- raising UserCancelled'))
         raise UserCancelled(f'Network request has been interrupted for {url}')
     else:
         # In theory, we should never reach this point.  If we do, then:
-        raise InternalError(f'Unexpected code contingency in timed_request for {url}')
+        raise InternalError(f'Unexpected case in timed_request for {url}')
 
 
-def net(method, url, session = None, timeout = 20, handle_rate = True,
+def net(method, url, client = None, handle_rate = True,
         polling = False, recursing = 0, **kwargs):
     '''Invoke HTTP "method" on 'url' with optional keyword arguments provided.
 
@@ -167,8 +165,9 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     the second element will be None.  This allows the caller to inspect the
     response even in cases where exceptions are raised.
 
-    If keyword 'session' is not None, it's assumed to be a Python requests
-    Session object to use for the network call.
+    If keyword 'client' is not None, it's assumed to be a Python HTTPX Client
+    object to use for the network call.  Settings such as timeouts should be
+    done by the caller creating appropriately-configured Client objects.
 
     If keyword 'handle_rate' is True, this function will automatically pause
     and retry if it receives an HTTP code 429 ("too many requests") from the
@@ -182,59 +181,29 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     call this function (with polling = True) as needed.
 
     This method always passes the argument allow_redirects = True to the
-    underlying Python requests library network call.
+    underlying Python HTTPX library network calls.
     '''
     def addurl(text):
         return f'{text} for {url}'
 
     resp = None
     try:
-        resp = timed_request(method, url, session, timeout,
-                             allow_redirects = True, **kwargs)
-    except requests.exceptions.ConnectionError as ex:
+        resp = timed_request(method, url, client, allow_redirects = True, **kwargs)
+    except (httpx.NetworkError, httpx.ProtocolError) as ex:
         if __debug__: log(addurl(f'got network exception: {str(ex)}'))
-        if recursing >= _MAX_RECURSIVE_CALLS:
+        if not network_available():
             if __debug__: log(addurl('returning NetworkFailure'))
-            return (resp, NetworkFailure(addurl('Too many connection errors')))
-        arg0 = ex.args[0]
-        if isinstance(arg0, urllib3.exceptions.MaxRetryError):
-            if __debug__: log(addurl(str(arg0)))
-            # This can be a transient error due to various causes.  Retry once.
-            if recursing == 0:
-                wait(1)
-                return net(method, url, session, timeout, handle_rate,
-                           polling, recursing + 1, **kwargs)
-            else:
-                # We've seen maxretry before or we're recursing due to some
-                # other failure.  Time to bail.
-                original = unwrapped_urllib3_exception(arg0)
-                if __debug__: log(addurl('returning NetworkFailure'))
-                if isinstance(original, str) and 'unreacheable' in original:
-                    return (resp, NetworkFailure(addurl('Unable to connect to server')))
-                elif network_available():
-                    return (resp, NetworkFailure(addurl('Unable to resolve host')))
-                else:
-                    return (resp, NetworkFailure(addurl('Lost connection with server')))
-        elif (isinstance(arg0, urllib3.exceptions.ProtocolError)
-              and arg0.args and isinstance(args0.args[1], ConnectionResetError)):
-            if __debug__: log(addurl('net() got ConnectionResetError; pausing for 1 s'))
-            wait(1)                     # Sleep a short time and try again.
-            if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
-            return net(method, url, session, timeout, polling, handle_rate,
-                       recursing + 1, **kwargs)
+            return (resp, NetworkFailure(addurl('Network connectivity failure')))
+        elif recursing == 0:
+            # Problem may be transient. Briefly pause & retry once.
+            # Note: this is different from getting a status code 429.
+            if __debug__: log(addurl('briefly waiting & retrying once'))
+            wait(1)
+            return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
         else:
-            if __debug__: log(addurl('returning NetworkFailure'))
-            return (resp, NetworkFailure(addurl(str(ex))))
-    except requests.exceptions.ReadTimeout as ex:
-        if network_available():
-            if __debug__: log(addurl('returning ServiceFailure'))
-            return (resp, ServiceFailure(addurl('Timed out reading data from server')))
-        else:
-            if __debug__: log(addurl('returning NetworkFailure'))
-            return (resp, NetworkFailure(addurl('Timed out reading data over network')))
-    except requests.exceptions.InvalidSchema as ex:
-        if __debug__: log(addurl('returning NetworkFailure'))
-        return (resp, NetworkFailure(addurl('Unsupported network protocol')))
+            # We've been here before. Time to bail.
+            if __debug__: log(addurl('failed > 1 times -- returning ServiceFailure'))
+            return (resp, ServiceFailure(addurl('Network or server error {str(ex)}')))
     except Exception as ex:
         if __debug__: log(addurl(f'returning exception: {str(ex)}'))
         return (resp, ex)
@@ -243,6 +212,7 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     # and 302 redirects automatically, so we don't need to do it here.
     error = None
     code = resp.status_code
+    reason = resp.reason_phrase
     if __debug__: log(addurl(f'got http status code {code}'))
     if code == 400:
         error = ServiceFailure(addurl('Server rejected the request'))
@@ -251,47 +221,25 @@ def net(method, url, session = None, timeout = 20, handle_rate = True,
     elif code in [404, 410] and not polling:
         error = NoContent(addurl("No content found"))
     elif code in [405, 406, 409, 411, 412, 414, 417, 428, 431, 505, 510]:
-        error = InternalError(addurl(f'Server returned code {code} ({resp.reason})'))
+        error = InternalError(addurl(f'Server returned code {code} ({reason})'))
     elif code in [415, 416]:
-        error = ServiceFailure(addurl('Server rejected the request ({resp.reason})'))
+        error = ServiceFailure(addurl('Server rejected the request ({reason})'))
     elif code == 429:
         if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
             if __debug__: log(addurl(f'rate limit hit -- sleeping {pause} s'))
             wait(pause)                   # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
-            return net(method, url, session = session, timeout = timeout,
-                       polling = polling, handle_rate = True,
-                       recursing = recursing + 1, **kwargs)
+            return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
         error = RateLimitExceeded(addurl('Server blocking requests due to rate limits'))
     elif code == 503:
-        error = ServiceFailure(addurl(f'{resp.reason}'))
+        error = ServiceFailure(addurl(f'{reason}'))
     elif code == 504:
-        error = ServiceFailure(addurl(f'Server timeout: {resp.reason}'))
+        error = ServiceFailure(addurl(f'Server timeout: {reason}'))
     elif code in [500, 501, 502, 506, 507, 508]:
-        error = ServiceFailure(addurl(f'Server error (code {code} -- {resp.reason})'))
+        error = ServiceFailure(addurl(f'Server error (code {code} -- {reason})'))
     elif not (200 <= code < 400):
         error = NetworkFailure(addurl(f'Unable to resolve {url}'))
     # The error msg will have had the URL added already; no need to do it here.
-    if __debug__: log('returning {}'.format(f'error {error}' if error else 'no error'))
+    if __debug__: log('returning {}'.format(f'{error}' if error else f'response for {url}'))
     return (resp, error)
-
-
-# Next code originally from https://stackoverflow.com/a/39779918/743730
-def disable_ssl_cert_check():
-    requests.packages.urllib3.disable_warnings()
-    try:
-        _create_unverified_https_context = ssl._create_unverified_context
-    except AttributeError:
-        # Legacy Python that doesn't verify HTTPS certificates by default
-        pass
-    else:
-        # Handle target environment that doesn't support HTTPS verification
-        ssl._create_default_https_context = _create_unverified_https_context
-
-
-def unwrapped_urllib3_exception(ex):
-    if hasattr(ex, 'args') and isinstance(ex.args, tuple):
-        return unwrapped_urllib3_exception(ex.args[0])
-    else:
-        return ex

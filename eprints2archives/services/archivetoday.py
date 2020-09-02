@@ -122,13 +122,18 @@ class ArchiveToday(Service):
 
     _host = None                        # archive.il or archive.is or ...
     _sid  = None                        # current submit id value
+    _available = True                   # did we manage to find a host?
 
     # Public methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def save(self, url, notify, force = False):
         '''Ask the service to save "url".'''
-        if not self._host:
-            self._find_host()
+        if self._available and self._host is None:
+            self._host = self._archive_host()
+            self._available = self._host is not None
+        if not self._available:
+            notify(ServiceStatus.UNAVAILABLE)
+            return (False, -1)
 
         if force:
             # If we're forcing a send, we don't care how many copies exist.
@@ -172,32 +177,36 @@ class ArchiveToday(Service):
                 notify(ServiceStatus.PAUSED_RATE_LIMIT)
                 wait(_RATE_LIMIT_SLEEP)
                 notify(ServiceStatus.RUNNING)
-                return self._timemap_for_url(url)
+                return self._timemap_for_url(url, notify)
         else:
             raise error
 
 
-    def _find_host(self):
+    def _archive_host(self):
         headers = {"User-Agent": _USER_AGENT}
         if __debug__: log(f'looking for active {self.name} host')
+        archive_host = None
         for host in _HOSTS:
             # headers['host'] = host
             test_url = f'https://{host}/'
             (response, error) = net('get', test_url, headers = headers)
             if not error:
                 if __debug__: log(f'Archive.Today host is currently {host}')
-                self._host = host
+                archive_host = host
                 break
+            elif isinstance(error, ServiceFailure) and response.status_code == 503:
+                continue
             else:
                 raise error
-        if not self._host:
-            raise ServiceFailure(f'None of the {self.name} servers are responding')
+        if archive_host is None:
+            return None
         try:
             html = str(response.content)
             # Gnarly line of code from ArchiveNow.
             self._sid = html.split('name="submitid', 1)[1].split('value="', 1)[1].split('"', 1)[0]
         except:
             raise InternalError(f'Unable to parse {self.name} page')
+        return archive_host
 
 
     def _archive(self, url, notify, retry = 0):

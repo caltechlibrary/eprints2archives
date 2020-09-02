@@ -33,7 +33,7 @@ from .exceptions import *
 from .exit_codes import ExitCode
 from .interruptions import interrupted, raise_for_interrupts
 from .files import writable
-from .network import network_available, hostname, netloc
+from .network import network_available, hostname, scheme, netloc
 from .services import ServiceStatus, service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
 
@@ -42,6 +42,9 @@ from .ui import inform, warn, alert, alert_fatal
 # .............................................................................
 
 _PARALLEL_THRESHOLD = 2
+
+_BAR = BarColumn(bar_width = None)
+'''All our progress bars use the same kind of column.'''
 
 
 # Class definitions.
@@ -120,17 +123,8 @@ class MainBody(Thread):
         hint = f'(Hint: use {"/" if sys.platform.startswith("wi") else "-"}h for help.)'
 
         # We can't do anything without the EPrints server URL.
-        # We remove any ending /eprint because we add it separately when needed.
-        # For convenience, we add /rest if the user forgot.
         if self.api_url is None:
             alert_fatal(f'Must provide an EPrints API URL. {hint}')
-            raise CannotProceed(ExitCode.bad_arg)
-        if self.api_url.endswith('/eprint'):
-            self.api_url = self.api_url[0 : self.api_url.rfind('/eprint')]
-        if not self.api_url.endswith('/rest'):
-            self.api_url += '/rest'
-        if not validators.url(self.api_url):
-            alert_fatal(f'The given API URL appears invalid: {self.api_url}')
             raise CannotProceed(ExitCode.bad_arg)
 
         if self.lastmod:
@@ -149,15 +143,12 @@ class MainBody(Thread):
         if self.dest == 'all':
             self.dest = service_interfaces()
         else:
-            destination_list = []
-            for destination in self.dest.split(','):
-                service = service_by_name(destination)
-                if service:
-                    destination_list.append(service)
-                else:
-                    alert_fatal('Unknown destination service "{}"', destination)
-                    raise CannotProceed(ExitCode.bad_arg)
-            self.dest = destination_list
+            destination_list = self.dest.split(',')
+            self.dest = [service_by_name(d) for d in destination_list]
+            if None in self.dest:
+                bad_dest = destination_list[self.dest.index(None)]
+                alert_fatal(f'Unknown destination service "{bad_dest}". {hint}')
+                raise CannotProceed(ExitCode.bad_arg)
 
         host = netloc(self.api_url)
         self.user, self.password, cancel = self.auth_handler.credentials(host)
@@ -174,7 +165,6 @@ class MainBody(Thread):
         if self.report_file:
             if writable(self.report_file):
                 inform(f'A report will be written to "{self.report_file}"')
-                self._report(f'eprints2archives starting {timestamp()}.', True)
             else:
                 alert_fatal(f'Cannot write to file "{self.report_file}"')
                 raise CannotProceed(ExitCode.file_error)
@@ -182,24 +172,23 @@ class MainBody(Thread):
 
     def _do_main_work(self):
         '''Performs the core work of this program.'''
-        server = EPrintServer(self.api_url, self.user, self.password)
+        self._report(f'eprints2archives starting {timestamp()}.', True)
 
-        inform(f'Getting full EPrints index from [sea_green2]{server}[/] ...')
-        available = server.index()
+        server = EPrintServer(self.api_url, self.user, self.password)
+        available = self._eprints_index(server)
         if not available:
             raise NoContent(f'Received empty list from {server}.')
         self._report(f'EPrints server at {self.api_url} has {len(available)} records.')
 
         # If the user wants specific records, check which ones actually exist.
         if self.wanted_list:
-            missing = list(set(self.wanted_list) - set(available))
+            missing = sorted(list(set(self.wanted_list) - set(available)), key = int)
             if missing and self.quit_on_error:
-                raise ValueError(f'{intcomma(len(missing))} of the requested'
-                                 + ' records do not exist on the server:'
-                                 + f' {", ".join(sorted(missing, key = int))}.')
+                raise ValueError(f'{intcomma(len(missing))} of the requested records'
+                                 + ' do not exist on the server: {", ".join(missing)}.')
             elif missing:
                 msg = (f"Of the records requested, the following don't exist and"
-                       + f" will be skipped: {', '.join(sorted(missing, key = int))}.")
+                       + f" will be skipped: {', '.join(missing)}.")
                 warn(msg)
                 self._report(msg)
             wanted = sorted(list(set(self.wanted_list) - set(missing)), key = int)
@@ -209,8 +198,7 @@ class MainBody(Thread):
 
         # Make sure to archive the front pages and some common pages.
 
-        inform('Extracting URLs under /view pages ...')
-        urls = self._eprints_general_urls(server)
+        urls = self._eprints_general_urls(server, self.wanted_list)
 
         # The basic URLs for EPrint pages can be constructed without doing
         # any record lookups -- all you need is id numbers from the index.
@@ -282,7 +270,7 @@ class MainBody(Thread):
         def record_values(items, update_progress):
             results = []
             for item in items:
-                if __debug__: log(f'getting data for {item}')
+                if __debug__: log(f'getting data for record {item}')
                 failure = None
                 try:
                     data = value_function(item)
@@ -313,9 +301,37 @@ class MainBody(Thread):
         return self._gathered(record_values, items_list, header)
 
 
-    def _eprints_general_urls(self, server):
-        '''Return a list of commonly-available, high-level EPrints URLs.'''
-        return [server.front_page_url()] + server.view_urls()
+    def _eprints_index(self, server):
+        '''Return the index from the server, getting it with a progress bar.'''
+        header = f'[green3]Getting full EPrints index from [sea_green2]{server}[/] ...'
+        with Progress('[progress.description]{task.description}', _BAR) as progress:
+            bar = progress.add_task(header, start = False)
+            progress.update(bar)
+            index = server.index()
+            progress.start_task(bar)
+            progress.update(bar, advance = 100)
+        return index
+
+
+    def _eprints_general_urls(self, server, id_subset = None):
+        '''Return a list of commonly-available, high-level EPrints URLs.
+
+        If parameter value "id_subset" is not None, it is taken to be a list
+        of EPrint id's that is used to limit the pages under /view to be
+        returned.  Otherwise, if no "id_subset" list is given, all /view
+        pages are returned.
+        '''
+        header = '[green3]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
+        with Progress('[progress.description]{task.description}', _BAR) as progress:
+            bar = progress.add_task(header, start = False)
+            progress.update(bar)
+            if id_subset:
+                urls = server.view_urls(id_subset)
+            else:
+                urls = unique(server.top_level_urls() + server.view_urls())
+            progress.start_task(bar)
+            progress.update(bar, advance = 100)
+        return urls
 
 
     def _eprints_record_urls(self, server, records_list):
@@ -348,30 +364,29 @@ class MainBody(Thread):
             inform('Force option given ⟹  adding URLs even if archives have copies.')
 
         # Helper function: send urls to given service & use progress bar.
-        def send_to_service(dest, pbar):
+        def send_to_service(dest, prog):
             num_added = 0
             num_skipped = 0
-            description = activity(dest, ServiceStatus.RUNNING)
-            task = pbar.add_task(description, total = num_urls, added = 0, skipped = 0)
-            notify = lambda s: pbar.update(task, description = activity(dest, s), refresh = True)
+            status_text = activity(dest, ServiceStatus.RUNNING)
+            row = prog.add_task(status_text, total = num_urls, added = 0, skipped = 0)
+            notify = lambda s: prog.update(row, description = activity(dest, s), refresh = True)
             for url in urls_to_send:
                 if __debug__: log(f'next for {dest}: {url}')
                 (added, num_existing) = dest.save(url, notify, self.force)
                 added_str = "added" if added else "skipped"
                 num_added += int(added)
                 num_skipped += int(not added)
-                pbar.update(task, advance = 1, added = num_added, skipped = num_skipped)
+                prog.update(row, advance = 1, added = num_added, skipped = num_skipped)
                 self._report(f'{url} ➜ {dest.name}: {added_str}')
                 raise_for_interrupts()
 
         # Start of actual procedure.
-        bar  = BarColumn(bar_width = None)
         info = TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped')
-        with Progress('[progress.description]{task.description}', bar, info) as pbar:
+        with Progress('[progress.description]{task.description}', _BAR, info) as prog:
             if __debug__: log(f'starting {self.threads} threads')
             if self.threads == 1:
                 # For 1 thread, avoid thread pool to make debugging easier.
-                results = [send_to_service(service, pbar) for service in self.dest]
+                results = [send_to_service(service, prog) for service in self.dest]
             else:
                 num_threads = min(num_dest, self.threads)
                 if __debug__: log(f'using {num_threads} threads to send records')
@@ -379,7 +394,7 @@ class MainBody(Thread):
                                                     thread_name_prefix = 'SendThread')
                 self._futures = []
                 for service in self.dest:
-                    future = self._executor.submit(send_to_service, service, pbar)
+                    future = self._executor.submit(send_to_service, service, prog)
                     self._futures.append(future)
                 [f.result() for f in self._futures]
         self._report(f'Finished sending {num_urls} URLs.')
@@ -395,10 +410,8 @@ class MainBody(Thread):
     def _gathered(self, loop, items_list, header):
         '''Return the collected results of running "loop" in multiple threads.'''
         num_items = len(items_list)
-        with Progress('[progress.description]{task.description}',
-                      BarColumn(bar_width = None),
-                      TextColumn('{task.completed}/' + intcomma(num_items)),
-                      refresh_per_second = 5) as progress:
+        text = TextColumn('{task.completed}/' + intcomma(num_items) + ' records')
+        with Progress('[progress.description]{task.description}', _BAR, text) as progress:
             # Wrap up the progress bar updater as a lambda that we pass down.
             bar = progress.add_task(header, total = num_items)
             update_progress = lambda: progress.update(bar, advance = 1)
@@ -472,10 +485,12 @@ def fmt_statuses(status_list, negated):
 def activity(dest, status):
     name = f'[{dest.color}]{dest.name}[/]'
     if status == ServiceStatus.RUNNING:
-        return f'[green3]Sending URLs to {name} ...         '
+        return f'[green3]Sending URLs to {name} ...                     '
     elif status == ServiceStatus.PAUSED_RATE_LIMIT:
-        return f'[yellow3 on grey35]Paused for rate limit {name} ... '
+        return f'[yellow3 on grey35]Paused for rate limit {name} ...               '
     elif status == ServiceStatus.PAUSED_ERROR:
-        return f'[orange1]Paused for error {name} ...      '
+        return f'[orange1]Paused due to {name} error -- will retry ...   '
+    elif status == ServiceStatus.UNAVAILABLE:
+        return f'[red]No response from {name} servers ...                   '
     else:
-        import pdb; pdb.set_trace()
+        return f'[red]Unknown status                                 '
