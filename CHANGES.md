@@ -5,9 +5,10 @@ Version 1.2.1
 -------------
 
 * Add missing `requirements.txt` dependency for [`h2`](https://pypi.org/project/h2) package.
-* Remove accidentally left-in invocation of `pdb` upon errors even if debugging not enabled.
 * Make parsing of malformed id ranges slightly more robust.
 * Fix incorrect pluralization of an info message.
+* Remove accidentally left-in invocation of `pdb` upon errors even if debugging not enabled.
+* Edit the README.md file slightly.
 
 
 Version 1.2.0
