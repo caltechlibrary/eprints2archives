@@ -1,6 +1,15 @@
 Change log for REPOSITORY
 =========================
 
+Version 1.2.1
+-------------
+
+* Add missing `requirements.txt` dependency for [`h2`](https://pypi.org/project/h2) package.
+* Remove accidentally left-in invocation of `pdb` upon errors even if debugging not enabled.
+* Make parsing of malformed id ranges slightly more robust.
+* Fix incorrect pluralization of an info message.
+
+
 Version 1.2.0
 -------------
 
