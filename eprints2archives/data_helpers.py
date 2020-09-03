@@ -46,6 +46,12 @@ def expand_range(text):
     # This makes the range 1-100 be 1, 2, ..., 100 instead of 1, 2, ..., 99
     if '-' in text:
         range_list = text.split('-')
+        # Malformed cases of -x, where first number is missing.  Take it as 1.
+        if not range_list[0].isdigit():
+            range_list = [1, range_list[1]]
+        # Malformed cases of x-, where 2nd number missing.  Can't handle this.
+        if not range_list[1].isdigit():
+            raise ValueError(f'Malformed range expression: "{text}"')
         range_list.sort(key = int)
         return [*map(str, range(int(range_list[0]), int(range_list[1]) + 1))]
     else:
@@ -67,7 +73,7 @@ def plural(word, count):
     '''Simple pluralization; adds "s" to the end of "word" if count > 1.'''
     if isinstance(count, int):
         return word + 's' if count > 1 else word
-    elif isinstance(count, (list, set, dict)):
+    elif isinstance(count, (list, set, dict)) or type(count) is {}.values().__class__:
         return word + 's' if len(count) > 1 else word
     else:
         # If we don't recognize the kind of thing it is, return it unchanged.
