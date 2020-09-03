@@ -312,7 +312,6 @@ Command-line options summary
             msg = str(exception[1])
             details = ''.join(format_exception(*exception))
             if __debug__: logr(f'Exception: {msg}\n{details}')
-            import pdb; pdb.set_trace()
             if debugging:
                 import pdb; pdb.set_trace()
             if manager:
