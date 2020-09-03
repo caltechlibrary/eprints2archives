@@ -39,7 +39,7 @@ The program is written in Python 3 and works over a network using an EPrints ser
 Installation
 ------------
 
-The instructions below assume you have a Python interpreter installed on your computer; if that's not the case, please first install Python and familiarize yourself with running Python programs on your system.
+The instructions below assume you have a Python interpreter installed on your computer; if that's not the case, please first install Python version 3 and familiarize yourself with running Python programs on your system.
 
 On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install `eprints2archives` with [`pip`](https://pip.pypa.io/en/stable/installing/).  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
 ```
@@ -51,12 +51,18 @@ As an alternative to getting it from [PyPI](https://pypi.org), you can use `pip`
 python3 -m pip install git+https://github.com/caltechlibrary/eprints2archives.git --upgrade
 ```
 
-After installing it, on Linux and macOS systems you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell.  You should be able to run `eprints2archives` from the shell like any other program.  On Windows, or if `eprints2archives` ended up in a location not normally searched by your terminal shell, you should still be able to invoke the program as a Python module.  For example,
+After installing it, on Linux and macOS systems you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell.  You should be able to run `eprints2archives` from the shell like any other program.  If `eprints2archives` ended up in a location not normally searched by your terminal shell, you should still be able to invoke the program as a Python module.  For example,
 
-``` shell
+```shell
 python3 -m eprints2archives -h
 ```
  
+On Windows, Python 3 is usually installed as just `python` instead of `python3`, and `eprints2archives` follows the Windows convention of using `/` as the option prefix instead of a dash (`-`).  So, instead of the above, you would type
+
+```shell
+python -m eprints2archives /h
+```
+
 
 Usage
 -----
@@ -243,6 +249,7 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
 * [dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [distro](https://github.com/nir0s/distro) &ndash; get info about the OS distribution running the current computer
+* [h2](https://pypi.org/project/h2) &ndash; HTTP/2 support library used by [HTTPX](https://www.python-httpx.org)
 * [httpx](https://www.python-httpx.org) &ndash; Python HTTP client library that supports HTTP/2
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
 * [ipdb](https://github.com/gotcha/ipdb) &ndash; the IPython debugger
@@ -254,7 +261,6 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
 * [tldextract](https://github.com/john-kurkowski/tldextract) &ndash; module to parse domains from URLs
-* [tzlocal](https://github.com/regebro/tzlocal) &ndash; determine your local time zone
 * [urllib3](https://urllib3.readthedocs.io/en/latest/) &ndash; HTTP client library for Python
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python
 
