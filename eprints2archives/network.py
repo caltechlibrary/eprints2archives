@@ -113,7 +113,13 @@ def timed_request(method, url, client = None, **kwargs):
             if __debug__: log(addurl(f'doing http {method}'))
             func = getattr(client, method)
             response = func(url, **kwargs)
-            return response
+            # For some statuses, retry once, in case it's a transient problem.
+            code = response.status_code
+            if __debug__: log(addurl(f'got response with code {code}'))
+            if code not in [400, 409, 502, 503, 504] or failures > 0:
+                return response
+            else:
+                failures += 1
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(addurl(f'network {method} interrupted by {str(ex)}'))
             raise
@@ -125,6 +131,7 @@ def timed_request(method, url, client = None, **kwargs):
             if __debug__: log(addurl(f'exception {str(ex)}'))
             if failures > 0:
                 raise
+            failures += 1
             if __debug__: log(addurl('retrying one more time after brief pause'))
         except Exception as ex:
             # Problem might be transient.  Don't quit right away.
@@ -141,13 +148,13 @@ def timed_request(method, url, client = None, **kwargs):
                 retries += 1
                 failures = 0
                 pause = 10 * retries * retries
-                if __debug__: log(addurl(f'pausing {pause} s due to consecutive failures'))
+                if __debug__: log(addurl(f'pausing due to consecutive failures'))
                 wait(pause)
             else:
                 if __debug__: log(addurl('exceeded max failures and max retries'))
                 raise error
         # Pause briefly b/c it's rarely a good idea to retry immediately.
-        if __debug__: log(addurl('pausing for 0.5 s'))
+        if __debug__: log(addurl('pausing briefly before retrying'))
         wait(0.5)
     if interrupted():
         if __debug__: log(addurl('interrupted -- raising UserCancelled'))
@@ -210,7 +217,6 @@ def net(method, url, client = None, handle_rate = True,
     error = None
     code = resp.status_code
     reason = resp.reason_phrase
-    if __debug__: log(addurl(f'got http status code {code}'))
     if code == 400:
         error = ServiceFailure(addurl('Server rejected the request'))
     elif code in [401, 402, 403, 407, 451, 511]:
@@ -224,7 +230,7 @@ def net(method, url, client = None, handle_rate = True,
     elif code == 429:
         if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
-            if __debug__: log(addurl(f'rate limit hit -- sleeping {pause} s'))
+            if __debug__: log(addurl('rate limit hit -- pausing'))
             wait(pause)                   # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
             return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
