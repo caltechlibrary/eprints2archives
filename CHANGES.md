@@ -1,16 +1,27 @@
 Change log for REPOSITORY
 =========================
 
+Version 1.2.1
+-------------
+
+* Add missing `requirements.txt` dependency for [`h2`](https://pypi.org/project/h2) package.
+* Make parsing of malformed id ranges slightly more robust.
+* Fix incorrect pluralization of an info message.
+* Remove accidentally left-in invocation of `pdb` upon errors even if debugging not enabled.
+* Edit the README.md file slightly.
+
+
 Version 1.2.0
 -------------
 
 * In addition to the record pages, `eprints2archives` now also harvests general URLs from the server, including the top-level URL and `/view` and 2 levels of pages underneath it.  However, if a subset of records is requested, only gets those particular `/view/X/N.html` pages rather than all pages under `/view/X/`.
-* Now tries to add `https://` or `http://` if the user forgets to provide it, and also removes `/eprint` and adds `/rest` if needed.  This makes it possible for the user to just provide a host name and `eprints2archives` will figure out the rest.
 * Internal changes allow it to use protocol HTTP/2, which was necessary to communicate with Archive.Today (because it appears to have stopped accepting save requests unless HTTP2 is used).
+* Now tries to add `https://` or `http://` if the user forgets to provide it, and also removes `/eprint` and adds `/rest` if needed.  This makes it possible for the user to just provide a host name and `eprints2archives` will figure out the rest.
 * Minor improvements to some of the run-time status messages.
 * More progress bars!
 * Improvements to debug logging.
-* Some internal code refactoring.
+* Improvements to README.md.
+* Internal code refactoring.
 
 
 Version 1.1.0
