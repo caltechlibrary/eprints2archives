@@ -117,13 +117,15 @@ def timed_request(method, url, client = None, **kwargs):
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(addurl(f'network {method} interrupted by {str(ex)}'))
             raise
-        except (httpx.InvalidURL, httpx.CookieConflict, httpx.StreamError,
-                httpx.ProxyError, httpx.DecodingError, httpx.ProtocolError,
+        except (httpx.CookieConflict, httpx.StreamError, httpx.ProxyError,
+                httpx.DecodingError, httpx.ProtocolError,
                 httpx.RequestBodyUnavailable, httpx.TooManyRedirects) as ex:
             # Probably indicates a deeper issue.  Don't do our lengthy retry
-            # sequence, but net() will still do its usual one-time retry.
+            # sequence, but try one more time, in case it's transient.
             if __debug__: log(addurl(f'exception {str(ex)}'))
-            raise
+            if failures > 0:
+                raise
+            if __debug__: log(addurl('retrying one more time after brief pause'))
         except Exception as ex:
             # Problem might be transient.  Don't quit right away.
             failures += 1
@@ -133,9 +135,6 @@ def timed_request(method, url, client = None, **kwargs):
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
-            # Pause briefly b/c it's rarely a good idea to retry immediately.
-            if __debug__: log(addurl('pausing for 0.5 s'))
-            wait(0.5)
         if failures >= _MAX_CONSECUTIVE_FAILS:
             # Pause with exponential back-off, reset failure count & try again.
             if retries < _MAX_RETRIES:
@@ -147,6 +146,9 @@ def timed_request(method, url, client = None, **kwargs):
             else:
                 if __debug__: log(addurl('exceeded max failures and max retries'))
                 raise error
+        # Pause briefly b/c it's rarely a good idea to retry immediately.
+        if __debug__: log(addurl('pausing for 0.5 s'))
+        wait(0.5)
     if interrupted():
         if __debug__: log(addurl('interrupted -- raising UserCancelled'))
         raise UserCancelled(f'Network request has been interrupted for {url}')
@@ -190,21 +192,16 @@ def net(method, url, client = None, handle_rate = True,
     try:
         resp = timed_request(method, url, client, allow_redirects = True, **kwargs)
     except (httpx.NetworkError, httpx.ProtocolError) as ex:
+        # timed_request() will have retried, so if we get here, time to bail.
         if __debug__: log(addurl(f'got network exception: {str(ex)}'))
         if not network_available():
             if __debug__: log(addurl('returning NetworkFailure'))
             return (resp, NetworkFailure(addurl('Network connectivity failure')))
-        elif recursing == 0:
-            # Problem may be transient. Briefly pause & retry once.
-            # Note: this is different from getting a status code 429.
-            if __debug__: log(addurl('briefly waiting & retrying once'))
-            wait(1)
-            return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
         else:
-            # We've been here before. Time to bail.
             if __debug__: log(addurl('failed > 1 times -- returning ServiceFailure'))
             return (resp, ServiceFailure(addurl('Network or server error {str(ex)}')))
     except Exception as ex:
+        # Not a network or protocol error, and not a normal server response.
         if __debug__: log(addurl(f'returning exception: {str(ex)}'))
         return (resp, ex)
 
