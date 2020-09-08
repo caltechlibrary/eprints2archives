@@ -1,6 +1,13 @@
 Change log for REPOSITORY
 =========================
 
+Version 1.2.2
+-------------
+
+* Retry network operations one time if get HTTP code 400.
+* Internal network code refactoring.
+
+
 Version 1.2.1
 -------------
 
