@@ -97,6 +97,16 @@ def timed_request(method, url, client = None, **kwargs):
     valid HTTP methods, such as "get", "post", or "head".  If "client" is
     not None, it is used as an httpx.Client object. Other keyword arguments
     are passed to the network method.
+
+    If not given a Client object, the default timeouts for network connect,
+    read, and write are 15 seconds.  It enables HTTP 2.0 and disables SSL
+    verification.
+
+    This method retries connections in cases of network exceptions.  It also
+    retries connections one time when the server returns certain HTTP status
+    codes, specifically 400, 409, 502, 503, and 504.  These are sometimes the
+    result of temporary server problems or other issues and disappear when a
+    second attempt is made after a brief pause.
     '''
     def addurl(text):
         return f'{text} for {url}'
@@ -113,17 +123,26 @@ def timed_request(method, url, client = None, **kwargs):
             if __debug__: log(addurl(f'doing http {method}'))
             func = getattr(client, method)
             response = func(url, **kwargs)
-            return response
+            # For some statuses, retry once, in case it's a transient problem.
+            code = response.status_code
+            if __debug__: log(addurl(f'got response with code {code}'))
+            if code not in [400, 409, 502, 503, 504] or failures > 0:
+                return response
+            else:
+                failures += 1
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(addurl(f'network {method} interrupted by {str(ex)}'))
             raise
-        except (httpx.InvalidURL, httpx.CookieConflict, httpx.StreamError,
-                httpx.ProxyError, httpx.DecodingError, httpx.ProtocolError,
+        except (httpx.CookieConflict, httpx.StreamError, httpx.ProxyError,
+                httpx.DecodingError, httpx.ProtocolError,
                 httpx.RequestBodyUnavailable, httpx.TooManyRedirects) as ex:
             # Probably indicates a deeper issue.  Don't do our lengthy retry
-            # sequence, but net() will still do its usual one-time retry.
+            # sequence, but try one more time, in case it's transient.
             if __debug__: log(addurl(f'exception {str(ex)}'))
-            raise
+            if failures > 0:
+                raise
+            failures += 1
+            if __debug__: log(addurl('retrying one more time after brief pause'))
         except Exception as ex:
             # Problem might be transient.  Don't quit right away.
             failures += 1
@@ -133,20 +152,20 @@ def timed_request(method, url, client = None, **kwargs):
             # about being unable to reconnect and not the original problem.
             if not error:
                 error = ex
-            # Pause briefly b/c it's rarely a good idea to retry immediately.
-            if __debug__: log(addurl('pausing for 0.5 s'))
-            wait(0.5)
         if failures >= _MAX_CONSECUTIVE_FAILS:
             # Pause with exponential back-off, reset failure count & try again.
             if retries < _MAX_RETRIES:
                 retries += 1
                 failures = 0
                 pause = 10 * retries * retries
-                if __debug__: log(addurl(f'pausing {pause} s due to consecutive failures'))
+                if __debug__: log(addurl(f'pausing due to consecutive failures'))
                 wait(pause)
             else:
                 if __debug__: log(addurl('exceeded max failures and max retries'))
                 raise error
+        # Pause briefly b/c it's rarely a good idea to retry immediately.
+        if __debug__: log(addurl('pausing briefly before retrying'))
+        wait(0.5)
     if interrupted():
         if __debug__: log(addurl('interrupted -- raising UserCancelled'))
         raise UserCancelled(f'Network request has been interrupted for {url}')
@@ -190,21 +209,16 @@ def net(method, url, client = None, handle_rate = True,
     try:
         resp = timed_request(method, url, client, allow_redirects = True, **kwargs)
     except (httpx.NetworkError, httpx.ProtocolError) as ex:
+        # timed_request() will have retried, so if we get here, time to bail.
         if __debug__: log(addurl(f'got network exception: {str(ex)}'))
         if not network_available():
             if __debug__: log(addurl('returning NetworkFailure'))
             return (resp, NetworkFailure(addurl('Network connectivity failure')))
-        elif recursing == 0:
-            # Problem may be transient. Briefly pause & retry once.
-            # Note: this is different from getting a status code 429.
-            if __debug__: log(addurl('briefly waiting & retrying once'))
-            wait(1)
-            return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
         else:
-            # We've been here before. Time to bail.
             if __debug__: log(addurl('failed > 1 times -- returning ServiceFailure'))
             return (resp, ServiceFailure(addurl('Network or server error {str(ex)}')))
     except Exception as ex:
+        # Not a network or protocol error, and not a normal server response.
         if __debug__: log(addurl(f'returning exception: {str(ex)}'))
         return (resp, ex)
 
@@ -213,7 +227,6 @@ def net(method, url, client = None, handle_rate = True,
     error = None
     code = resp.status_code
     reason = resp.reason_phrase
-    if __debug__: log(addurl(f'got http status code {code}'))
     if code == 400:
         error = ServiceFailure(addurl('Server rejected the request'))
     elif code in [401, 402, 403, 407, 451, 511]:
@@ -227,7 +240,7 @@ def net(method, url, client = None, handle_rate = True,
     elif code == 429:
         if handle_rate and recursing < _MAX_RECURSIVE_CALLS:
             pause = 5 * (recursing + 1)   # +1 b/c we start with recursing = 0.
-            if __debug__: log(addurl(f'rate limit hit -- sleeping {pause} s'))
+            if __debug__: log(addurl('rate limit hit -- pausing'))
             wait(pause)                   # 5 s, then 10 s, then 15 s, etc.
             if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
             return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
