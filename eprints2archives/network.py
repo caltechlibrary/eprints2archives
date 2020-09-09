@@ -97,6 +97,16 @@ def timed_request(method, url, client = None, **kwargs):
     valid HTTP methods, such as "get", "post", or "head".  If "client" is
     not None, it is used as an httpx.Client object. Other keyword arguments
     are passed to the network method.
+
+    If not given a Client object, the default timeouts for network connect,
+    read, and write are 15 seconds.  It enables HTTP 2.0 and disables SSL
+    verification.
+
+    This method retries connections in cases of network exceptions.  It also
+    retries connections one time when the server returns certain HTTP status
+    codes, specifically 400, 409, 502, 503, and 504.  These are sometimes the
+    result of temporary server problems or other issues and disappear when a
+    second attempt is made after a brief pause.
     '''
     def addurl(text):
         return f'{text} for {url}'
