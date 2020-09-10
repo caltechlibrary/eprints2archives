@@ -1,5 +1,5 @@
 '''
-network.py: miscellaneous network utilities for Microarchiver
+network.py: miscellaneous network utilities for eprints2archives
 
 Authors
 -------
