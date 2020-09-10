@@ -175,6 +175,7 @@ class EPrintServer():
             return []
 
         # Scrape the HTML to find the block of links to pages under /view.
+        if __debug__: log(f'scraping HTML of {view_base}')
         doc = html.fromstring(response.text)
         doc.make_links_absolute(view_base)
         view_urls = set(x.get('href') for x in doc.cssselect('div.ep_view_browse_list li a'))
@@ -187,6 +188,7 @@ class EPrintServer():
             if error:
                 if __debug__: log(f'got {type(error)} error for {subpage}')
                 continue
+            if __debug__: log(f'scraping HTML of {subpage}')
             doc = html.fromstring(response.text)
             doc.make_links_absolute(subpage)
             subpage_urls |= set(x.get('href') for x in doc.cssselect('div.ep_view_menu li a'))
