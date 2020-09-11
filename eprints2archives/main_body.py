@@ -198,7 +198,7 @@ class MainBody(Thread):
 
         # Make sure to archive the front pages and some common pages.
 
-        urls = self._eprints_general_urls(server, self.wanted_list)
+        urls = self._eprints_general_urls(server, wanted if self.wanted_list else None)
 
         # The basic URLs for EPrint pages can be constructed w/o looking up
         # records -- you only need id numbers from the index.  Some sites
