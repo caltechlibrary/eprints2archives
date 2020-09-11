@@ -23,7 +23,7 @@ from   rich.progress import Progress, BarColumn, TextColumn
 import sys
 from   threading import Thread
 import time
-import validators.url
+from   validators.url import url as valid_url
 
 from .data_helpers import DATE_FORMAT, slice, expand_range, plural
 from .data_helpers import timestamp, parse_datetime
@@ -200,16 +200,15 @@ class MainBody(Thread):
 
         urls = self._eprints_general_urls(server, self.wanted_list)
 
-        # The basic URLs for EPrint pages can be constructed without doing
-        # any record lookups -- all you need is id numbers from the index.
-        # Some sites like Caltech use an additional field, <official_url>,
-        # that DOES require a database lookup, but we can't know if a site
-        # uses official_url until we try it, and we can't be sure every
-        # record has a value, so we have to try to get official_url for all
-        # records.  If we're not filtering by lastmod or status, then it's
-        # faster to do direct lookups of <official_url>; conversely, if we
-        # need lastmod or status values, it takes less time to just get the
-        # XML of every record rather than ask for 2 or more field values
+        # The basic URLs for EPrint pages can be constructed w/o looking up
+        # records -- you only need id numbers from the index.  Some sites
+        # like Caltech use an additional field, <official_url>, that DOES
+        # require a database lookup. We can't know if a site uses it until we
+        # try it, and we can't be sure every record has a value, so we have to
+        # try it for all records.  If we're not filtering by lastmod or status,
+        # it's faster to do direct lookups of <official_url>; conversely, if
+        # we DO need lastmod or status values, it takes less time to just get
+        # the XML of every record rather than ask for 2 or more field values
         # separately, because each such EPrint lookup is slow and doing 2 or
         # more lookups per record is slower than doing one XML fetch.
 
@@ -241,26 +240,29 @@ class MainBody(Thread):
                 return
             urls += [server.eprint_field_value(r, 'official_url') for r in records]
 
-        # Next, construct "standard" URLs and check that they exist.  Do this
-        # AFTER the steps above, because if we did any filtering, we may have
-        # a much shorter list of records now than what we started with.
+        # Next, construct "standard" URLs.  Do it AFTER the steps above, b/c
+        # if we did any filtering, we may now have a shorter list of records.
 
         urls += self._eprints_record_urls(server, records or wanted)
 
         # Good time to check if the parent thread sent an interrupt.
         raise_for_interrupts()
 
-        # Clean up any None's and make sure we have something left to do.
-        # Also make sure the URLs are unique (that's the dict.fromkeys bit).
-        urls = list(dict.fromkeys(filter(None, urls)))
-        if not urls:
+        # Filter None's, make URLs unique (the dict.fromkeys trick), & validate
+        if __debug__: log(f'de-duping & validating list of {len(urls)} URLs')
+        final_urls = []
+        for u in dict.fromkeys(filter(None, urls)):
+            if valid_url(u):
+                final_urls.append(u)
+            else:
+                self._report(f'Ignoring invalid URL: {u}')
+        if not final_urls:
             alert('List of URLs is empty -- nothing to archive')
             return
 
-        # If we get this far, we're doing it.
-        inform(f'We have a total of {intcomma(len(urls))} {plural("URL", urls)}'
+        inform(f'We have a total of {intcomma(len(final_urls))} {plural("URL", final_urls)}'
                + f' to send to {len(self.dest)} {plural("archive", self.dest)}.')
-        self._send(urls)
+        self._send(final_urls)
         inform('Done.')
 
 
