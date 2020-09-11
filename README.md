@@ -32,7 +32,7 @@ Introduction
 The program is written in Python 3 and works over a network using an EPrints server's REST API and normal HTTP.  `eprints2archives` can work with EPrints servers that require logins as well as those that allow anonymous access.  It uses parallel threads by default, transparently handles rate limits, and robustly deals with network errors.
 
 <p align="center">
-  <a href="https://asciinema.org/a/357432"><img src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-1.2-screenshot.png" alt="Screencast of simple microarchiver demo"><i>Click to run asciinema screencast.</i></a>
+  <a href="https://asciinema.org/a/357432"><img src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-1.2-screenshot.png" alt="Screencast of simple eprints2archives"><i>Click to run asciinema screencast.</i></a>
 </p>
 
 
