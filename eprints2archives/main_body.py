@@ -215,7 +215,7 @@ class MainBody(Thread):
         records = []
         if not self.lastmod and not self.status:
             official_url = lambda r: server.eprint_field_value(r, 'official_url')
-            urls += self._eprints_values(official_url, wanted, server, "<official_url>'s")
+            ulist = self._eprints_values(official_url, wanted, server, "<official_url>'s")
         else:
             skipped = []
             for r in self._eprints_values(server.eprint_xml, wanted, server, "record materials"):
@@ -238,31 +238,34 @@ class MainBody(Thread):
             if len(records) == 0:
                 warn('Filtering left 0 records -- nothing left to do')
                 return
-            urls += [server.eprint_field_value(r, 'official_url') for r in records]
+            ulist = [server.eprint_field_value(r, 'official_url') for r in records]
+
+        # Filter out invalid URLs from the <official_url> values we gathered.
+        if __debug__: log(f'validating list of {len(ulist)} <official_url> URLs')
+        for url in ulist:
+            if valid_url(url):
+                urls.append(url)
+            else:
+                self._report(f'Ignoring invalid URL: {url}')
 
         # Next, construct "standard" URLs.  Do it AFTER the steps above, b/c
         # if we did any filtering, we may now have a shorter list of records.
 
         urls += self._eprints_record_urls(server, records or wanted)
 
-        # Good time to check if the parent thread sent an interrupt.
-        raise_for_interrupts()
-
-        # Filter None's, make URLs unique (the dict.fromkeys trick), & validate
+        # Filter None's & make URLs unique (that's the dict.fromkeys part).
         if __debug__: log(f'de-duping & validating list of {len(urls)} URLs')
-        final_urls = []
-        for u in dict.fromkeys(filter(None, urls)):
-            if valid_url(u):
-                final_urls.append(u)
-            else:
-                self._report(f'Ignoring invalid URL: {u}')
-        if not final_urls:
+        urls = list(dict.fromkeys(filter(None, urls)))
+        if not urls:
             alert('List of URLs is empty -- nothing to archive')
             return
 
-        inform(f'We have a total of {intcomma(len(final_urls))} {plural("URL", final_urls)}'
+        # Good time to check if the parent thread sent an interrupt.
+        raise_for_interrupts()
+
+        inform(f'We have a total of {intcomma(len(urls))} {plural("URL", urls)}'
                + f' to send to {len(self.dest)} {plural("archive", self.dest)}.')
-        self._send(final_urls)
+        self._send(urls)
         inform('Done.')
 
 
