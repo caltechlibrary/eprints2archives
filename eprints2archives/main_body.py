@@ -23,7 +23,7 @@ from   rich.progress import Progress, BarColumn, TextColumn
 import sys
 from   threading import Thread
 import time
-import validators.url
+from   validators.url import url as valid_url
 
 from .data_helpers import DATE_FORMAT, slice, expand_range, plural
 from .data_helpers import timestamp, parse_datetime
@@ -196,27 +196,22 @@ class MainBody(Thread):
         else:
             wanted = available
 
-        # Make sure to archive the front pages and some common pages.
-
-        urls = self._eprints_general_urls(server, self.wanted_list)
-
-        # The basic URLs for EPrint pages can be constructed without doing
-        # any record lookups -- all you need is id numbers from the index.
-        # Some sites like Caltech use an additional field, <official_url>,
-        # that DOES require a database lookup, but we can't know if a site
-        # uses official_url until we try it, and we can't be sure every
-        # record has a value, so we have to try to get official_url for all
-        # records.  If we're not filtering by lastmod or status, then it's
-        # faster to do direct lookups of <official_url>; conversely, if we
-        # need lastmod or status values, it takes less time to just get the
-        # XML of every record rather than ask for 2 or more field values
+        # The basic URLs for EPrint pages can be constructed w/o looking up
+        # records -- you only need id numbers from the index.  Some sites
+        # like Caltech use an additional field, <official_url>, that DOES
+        # require a database lookup. We can't know if a site uses it until we
+        # try it, and we can't be sure every record has a value, so we have to
+        # try it for all records.  If we're not filtering by lastmod or status,
+        # it's faster to do direct lookups of <official_url>; conversely, if
+        # we DO need lastmod or status values, it takes less time to just get
+        # the XML of every record rather than ask for 2 or more field values
         # separately, because each such EPrint lookup is slow and doing 2 or
         # more lookups per record is slower than doing one XML fetch.
 
         records = []
         if not self.lastmod and not self.status:
             official_url = lambda r: server.eprint_field_value(r, 'official_url')
-            urls += self._eprints_values(official_url, wanted, server, "<official_url>'s")
+            ulist = self._eprints_values(official_url, wanted, server, "<official_url>'s")
         else:
             skipped = []
             for r in self._eprints_values(server.eprint_xml, wanted, server, "record materials"):
@@ -237,29 +232,32 @@ class MainBody(Thread):
                 inform(f'Skipping {len(skipped)} records due to filtering.')
                 self._report(f'Skipping {len(skipped)} records due to filtering.')
             if len(records) == 0:
-                warn('Filtering left 0 records -- nothing left to do')
+                alert('Filtering left 0 records -- nothing left to do')
                 return
-            urls += [server.eprint_field_value(r, 'official_url') for r in records]
+            ulist = [server.eprint_field_value(r, 'official_url') for r in records]
 
-        # Next, construct "standard" URLs and check that they exist.  Do this
-        # AFTER the steps above, because if we did any filtering, we may have
-        # a much shorter list of records now than what we started with.
+        # Filter out invalid URLs from the <official_url> values we gathered.
+        if __debug__: log(f'validating list of {len(ulist)} <official_url> URLs')
+        urls = []
+        for url in ulist:
+            if valid_url(url):
+                urls.append(url)
+            else:
+                self._report(f'Ignoring invalid URL: {url}')
+
+        # Next, add "standard" URLs.  Do it AFTER the steps above, b/c if we
+        # did any filtering, we may now have a shorter list => less to do.
 
         urls += self._eprints_record_urls(server, records or wanted)
+        urls += self._eprints_general_urls(server, records or wanted)
 
-        # Good time to check if the parent thread sent an interrupt.
+        # Filter None's & make URLs unique (using a trick with dict.fromkeys).
+        if __debug__: log(f'de-duping & validating list of {len(urls)} URLs')
+        urls = list(dict.fromkeys(filter(None, urls)))
+
+        # Check parent hasn't raised an interrupt, and if not, start sending.
         raise_for_interrupts()
 
-        # Clean up any None's and make sure we have something left to do.
-        # Also make sure the URLs are unique (that's the dict.fromkeys bit).
-        urls = list(dict.fromkeys(filter(None, urls)))
-        if not urls:
-            alert('List of URLs is empty -- nothing to archive')
-            return
-
-        # If we get this far, we're doing it.
-        inform(f'We have a total of {intcomma(len(urls))} {plural("URL", urls)}'
-               + f' to send to {len(self.dest)} {plural("archive", self.dest)}.')
         self._send(urls)
         inform('Done.')
 
@@ -313,20 +311,19 @@ class MainBody(Thread):
         return index
 
 
-    def _eprints_general_urls(self, server, id_subset = None):
+    def _eprints_general_urls(self, server, subset):
         '''Return a list of commonly-available, high-level EPrints URLs.
 
-        If parameter value "id_subset" is not None, it is taken to be a list
-        of EPrint id's that is used to limit the pages under /view to be
-        returned.  Otherwise, if no "id_subset" list is given, all /view
-        pages are returned.
+        Parameter value "subset" is taken to be a list of EPrint id's or EPrint
+        XML objects that is used to limit the pages under /view to be returned.
+        Otherwise, if no "subset" list is given, all /view pages are returned.
         '''
         header = '[green3]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
         with Progress('[progress.description]{task.description}', _BAR) as progress:
             bar = progress.add_task(header, start = False)
             progress.update(bar)
-            if id_subset:
-                urls = server.view_urls(id_subset)
+            if self.wanted_list:
+                urls = server.view_urls(subset)
             else:
                 urls = unique(server.top_level_urls() + server.view_urls())
             progress.start_task(bar)
@@ -359,9 +356,12 @@ class MainBody(Thread):
         '''Send the list of URLs to each web archiving service in parallel.'''
         num_urls = len(urls_to_send)
         num_dest = len(self.dest)
-        self._report(f'Will send {num_urls} URLs to {num_dest} {plural("service", num_dest)}.')
+
+        inform(f'We have a total of {intcomma(num_urls)} {plural("URL", num_urls)}'
+               + f' to send to {num_dest} {plural("archive", num_dest)}.')
         if self.force:
             inform('Force option given ⟹  adding URLs even if archives have copies.')
+        self._report(f'Sending {num_urls} URLs to {num_dest} {plural("service", num_dest)}.')
 
         # Helper function: send urls to given service & use progress bar.
         def send_to_service(dest, prog):
@@ -383,7 +383,6 @@ class MainBody(Thread):
         # Start of actual procedure.
         info = TextColumn('{task.fields[added]} added/{task.fields[skipped]} skipped')
         with Progress('[progress.description]{task.description}', _BAR, info) as prog:
-            if __debug__: log(f'starting {self.threads} threads')
             if self.threads == 1:
                 # For 1 thread, avoid thread pool to make debugging easier.
                 results = [send_to_service(service, prog) for service in self.dest]

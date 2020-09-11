@@ -1,5 +1,15 @@
-Change log for REPOSITORY
-=========================
+Change log for eprints2archives
+===============================
+
+Version 1.3.0
+-------------
+
+* Check that URLs obtained from EPrints records appear to be valid URLs, before trying to send them to web archives. (This is mostly to catch bad values in the `official_url` record field.)
+* Be more careful about which `/view/X/N.html` pages are sent.
+* Do a better job with HTTP code 400 from Internet Archive.
+* Do some more internal network code refactoring.
+* Add some more debug log statements.
+
 
 Version 1.2.2
 -------------

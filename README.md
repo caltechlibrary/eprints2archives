@@ -32,7 +32,7 @@ Introduction
 The program is written in Python 3 and works over a network using an EPrints server's REST API and normal HTTP.  `eprints2archives` can work with EPrints servers that require logins as well as those that allow anonymous access.  It uses parallel threads by default, transparently handles rate limits, and robustly deals with network errors.
 
 <p align="center">
-  <a href="https://asciinema.org/a/357432"><img src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-1.2-screenshot.png" alt="Screencast of simple microarchiver demo"><i>Click to run asciinema screencast.</i></a>
+  <a href="https://asciinema.org/a/357432"><img src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-1.2-screenshot.png" alt="Screencast of simple eprints2archives"><i>Click to run asciinema screencast.</i></a>
 </p>
 
 
@@ -112,7 +112,7 @@ The list of EPrints URLs sent to web archiving sites depends on the command-line
 2. `https://SERVER/id/eprint/N`
 3. The value of the field `official_url` (if any) in the EPrint record.
 
-The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  On the other hand, the value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).
+The first two typically go to the same page on an EPrint server, but web archiving services have no direct mechanism to indicate that a given URL is an alias or redirection for another, so they need to be sent as separate URLs.  On the other hand, the value of `official_url` may be an entirely different URL, which may or may not go to the same location as one of the others.  For example, in the CaltechAUTHORS EPrint server, the record at [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447) has an `official_url` value of [`https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493`](https://resolver.caltech.edu/CaltechAUTHORS:20180327-085537493), but the latter is a redirection back to [`https://authors.library.caltech.edu/85447`](https://authors.library.caltech.edu/85447).  `eprints2archives` performs basic validation on the URL values, to make sure they appear to be formally valid and filter out malformed URLs, but does not verify that the locations actually exist.
 
 
 #### _Additional general URLs_

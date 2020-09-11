@@ -100,8 +100,13 @@ class InternetArchive(Service):
             wait(_RATE_LIMIT_SLEEP)
             notify(ServiceStatus.RUNNING)
             return self._timemap_for_url(url, notify)
+        elif isinstance(error, ServiceFailure):
+            # Our underlying network code will retry most of these cases, so if
+            # we get here, the timemap request is being rejected for some reason.
+            if __debug__: log(f'no timemap due to "{error}"')
+            return {}
         else:
-            if __debug__: log(f'got {error} for {url}')
+            if __debug__: log(f'got "{error}"')
             raise error
 
 
@@ -113,7 +118,7 @@ class InternetArchive(Service):
         action_url = 'https://web.archive.org/save/' + self._uniform(url)
         (response, error) = net('post', action_url, handle_rate = False, data = payload)
         if not error:
-            if __debug__: log(f'save request accepted by {self.name}')
+            if __debug__: log(f'save request accepted by {self.name} for {url}')
             return True
         elif isinstance(error, RateLimitExceeded):
             if __debug__: log(f'{self.name} rate limit; pausing {_RATE_LIMIT_SLEEP}s')
@@ -122,6 +127,11 @@ class InternetArchive(Service):
             notify(ServiceStatus.RUNNING)
             if __debug__: log(f'trying again recursively for {url}')
             return self._archive(url, notify)
+        elif isinstance(error, ServiceFailure):
+            # Our underlying network code will retry most of these cases, so if
+            # we get here, the save request is being rejected for some reason.
+            if __debug__: log(f'save request rejected by {self.name} for {url}')
+            return False
         else:
             if __debug__: log(f'save request resulted in an error: {str(error)}')
             # Our underlying net(...) function will retry automatically in

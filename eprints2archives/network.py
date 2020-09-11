@@ -1,5 +1,5 @@
 '''
-network.py: miscellaneous network utilities for Microarchiver
+network.py: miscellaneous network utilities for eprints2archives
 
 Authors
 -------
@@ -245,11 +245,7 @@ def net(method, url, client = None, handle_rate = True,
             if __debug__: log(addurl(f'doing recursive call #{recursing + 1}'))
             return net(method, url, client, handle_rate, polling, recursing + 1, **kwargs)
         error = RateLimitExceeded(addurl('Server blocking requests due to rate limits'))
-    elif code == 503:
-        error = ServiceFailure(addurl(f'{reason}'))
-    elif code == 504:
-        error = ServiceFailure(addurl(f'Server timeout: {reason}'))
-    elif code in [500, 501, 502, 506, 507, 508]:
+    elif code in [500, 501, 502, 503, 504, 506, 507, 508]:
         error = ServiceFailure(addurl(f'Server error (code {code} -- {reason})'))
     elif not (200 <= code < 400):
         error = NetworkFailure(addurl(f'Unable to resolve {url}'))

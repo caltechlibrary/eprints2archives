@@ -44,6 +44,6 @@ print-reminder:;
 	$(info ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛)
 
 clean:;
-	-rm -rf dist build
+	-rm -rf dist build eprints2archives.egg-info
 
 .PHONY: release release-on-github print-reminder

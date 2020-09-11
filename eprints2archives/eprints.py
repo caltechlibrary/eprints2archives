@@ -154,15 +154,15 @@ class EPrintServer():
         return urls
 
 
-    def view_urls(self, id_subset = None):
+    def view_urls(self, subset = None):
         '''Return a list of URLs corresponding to pages under /view.
 
-        If parameter value "id_subset" is not None, it is taken to be a list
-        of EPrint id's that is used to limit the pages under to be
+        If parameter value "subset" is not None, it is taken to be a list
+        of EPrint id's or XML objects, and used to limit the pages under to be
         returned.  The values return will only consist of URLs of the form
-        /view/X/N, where X is a subpage under /view and N is the number of a
-        record found "id_subset", if such URLs exist on the server.  Otherwise,
-        if no "id_subset" list is given, all /view/ids/N pages are returned
+        /view/X/N, where X is a subpage under /view and N is the id of a
+        record in "subset", if such URLs exist on the server.  Otherwise,
+        if no "subset" list is given, all /view/ids/N pages are returned
         (again, if they exist), along with all other pages found under /view
         and the pages one level below each of those. (E.g., /view/year,
         /view/year/yyyy.html, /view/person-az, /view/person-az/a.html, etc.)
@@ -175,6 +175,7 @@ class EPrintServer():
             return []
 
         # Scrape the HTML to find the block of links to pages under /view.
+        if __debug__: log(f'scraping HTML of {view_base}')
         doc = html.fromstring(response.text)
         doc.make_links_absolute(view_base)
         view_urls = set(x.get('href') for x in doc.cssselect('div.ep_view_browse_list li a'))
@@ -187,26 +188,30 @@ class EPrintServer():
             if error:
                 if __debug__: log(f'got {type(error)} error for {subpage}')
                 continue
+            if __debug__: log(f'scraping HTML of {subpage}')
             doc = html.fromstring(response.text)
             doc.make_links_absolute(subpage)
             subpage_urls |= set(x.get('href') for x in doc.cssselect('div.ep_view_menu li a'))
         if __debug__: log(f'collected {len(subpage_urls)} /view subpage URLs')
 
-        # If id_subset is given, we ONLY keep pages of the form /view/X/N.html
-        # where N is an identifier in id_subset.
-        if id_subset:
+        # If subset is given, we ONLY keep pages of the form /view/X/N.html
+        if subset:
             kept_urls = set()
-            for id in id_subset:
+            for item in subset:
                 for url in subpage_urls:
+                    if isinstance(item, (str, int)):
+                        eprintid = item
+                    else:
+                        eprintid = self._xml_field_value(item, 'eprintid')
                     # Year pages will have the form N.html too.  Skip them.
-                    if '/view/year' not in url and url.endswith(f'/{id}.html'):
-                        if __debug__: log(f'keeping {id}.html')
+                    if '/view/year' not in url and url.endswith(f'/{eprintid}.html'):
+                        if __debug__: log(f'keeping {eprintid}.html')
                         kept_urls.add(url)
                         break
             if __debug__: log(f'returning subset {len(kept_urls)} /view/X/N.html URLs')
             return list(kept_urls)
         else:
-            # No id_subset, so we return everything.
+            # No subset, so we return everything.
             view_urls |= subpage_urls
             if __debug__: log(f'returning {len(view_urls)} /view subpage URLs')
             return list(view_urls)
