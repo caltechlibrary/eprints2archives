@@ -25,7 +25,8 @@ if sys.platform.startswith('darwin'):
     import keyring.backends
     from keyring.backends.OS_X import Keyring
 
-from .debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
 
 
 # Global constants.

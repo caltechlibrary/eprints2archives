@@ -18,7 +18,9 @@ from   humanize import intcomma
 import requests
 from   time import sleep
 
-from ..debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from ..exceptions import *
 from ..interruptions import wait
 from ..network import net

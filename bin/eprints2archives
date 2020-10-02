@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/local/bin/python3
 # =============================================================================
 # @file    eprints2archives
 # @brief   Simple interface to run eprints2archives, for testing and exploration

@@ -19,11 +19,13 @@ from   os import path, cpu_count
 import plac
 import sys
 
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
 from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime, timestamp
-from   .debug import set_debug, log, logr
 from   .exceptions import *
 from   .exit_codes import ExitCode
 from   .files import readable
@@ -249,7 +251,7 @@ Command-line options summary
 
     debugging = debug != 'OUT'
     if debugging:
-        set_debug(True, debug)
+        if __debug__: set_debug(True, debug, extra = '%(threadName)s')
         from rich.traceback import install as install_rich_traceback
         install_rich_traceback()
         import faulthandler

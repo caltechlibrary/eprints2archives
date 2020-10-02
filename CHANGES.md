@@ -1,6 +1,14 @@
 Change log for eprints2archives
 ===============================
 
+Version 1.3.1
+-------------
+
+* Use [Sidetrack](https://github.com/caltechlibrary/sidetrack) instead of internal `debug.py` version of the same.
+* Internally, use different approach to recording version number and other metadata.
+* Use updated release procedure codified in `Makefile`.
+
+
 Version 1.3.0
 -------------
 

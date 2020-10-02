@@ -25,9 +25,11 @@ from   threading import Thread
 import time
 from   validators.url import url as valid_url
 
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from .data_helpers import DATE_FORMAT, slice, expand_range, plural
 from .data_helpers import timestamp, parse_datetime
-from .debug import log
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode

@@ -26,7 +26,8 @@ import webbrowser
 import zipfile
 from   zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
 
-from .debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
 
 
 # Constants.

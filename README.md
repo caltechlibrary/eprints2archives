@@ -147,7 +147,7 @@ To save a report of the articles sent, you can use the option `-r` (`/r` on Wind
 
 `eprints2archives` will print informative messages as it works. To limit the messages to warnings and errors only, use the option `-q` (or `/q` on Windows). Also, output is color-coded by default unless the `-C` option (or `/C` on Windows) is given; this option can be helpful if the color control signals create problems for your terminal emulator.
 
-If given the `-@` argument (`/@` on Windows), this program will output a detailed trace of what it is doing, and will also drop into a debugger upon the occurrence of any errors.  The debug trace will be written to the given destination, which can be a dash character (`-`) to indicate console output, or a file path.
+If given the `-@` argument (`/@` on Windows), this program will output a detailed trace of what it is doing, and will also drop into a debugger upon the occurrence of any errors.  The debug trace will be written to the given destination, which can be a dash character (`-`) to indicate the standard error stream (`sys.stderr`), or a file path.  Note, however, that if `eprints2archives` is being run with [Python optimization](https://docs.python.org/3/using/cmdline.html#cmdoption-o) enabled, then `-@` will have no effect and will be silently ignored.
 
 If given the `-V` option (`/V` on Windows), this program will print the version and other information to the console, and exit without doing anything else.
 
@@ -172,10 +172,11 @@ The following table summarizes all the command line options available. (Note: on
 | `-K`      | `--no-keyring`   | Don't use a keyring/keychain | Store login info in keyring | |
 | `-S`      | `--services`     | Print list of known services and exit | Do other actions instead |
 | `-V`      | `--version`      | Print program version info and exit | Do other actions instead | |
-| `-@`_OUT_ | `--debug`_OUT_   | Debugging mode; write trace to _OUT_ | Normal mode | ⚐ |
+| `-@`_OUT_ | `--debug`_OUT_   | Debugging mode; write trace to _OUT_ | Normal mode | ⚐ ★|
 
  ⚑ &nbsp; Required argument.<br>
-⚐ &nbsp; To write to the console, use the character `-` as the value of _OUT_; otherwise, _OUT_ must be the name of a file where the output should be written.
+⚐ &nbsp; To write to the console, use the character `-` as the value of _OUT_; otherwise, _OUT_ must be the name of a file where the output should be written.<br>
+★ &nbsp; Has no effect if `eprints2archives` is being run with [Python optimization](https://docs.python.org/3/using/cmdline.html#cmdoption-o) enabled.
 
 
 ### Return values

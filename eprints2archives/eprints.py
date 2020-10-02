@@ -24,8 +24,10 @@ import shutil
 import ssl
 import validators
 
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from .data_helpers import parse_datetime, unique
-from .debug import log
 from .exceptions import *
 from .network import net, hostname, scheme, netloc
 from .ui import warn, alert
