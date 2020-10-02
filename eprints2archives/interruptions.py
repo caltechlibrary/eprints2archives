@@ -21,7 +21,9 @@ file "LICENSE" for more information.
 
 import threading
 
-from .debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from .exceptions import *
 
 

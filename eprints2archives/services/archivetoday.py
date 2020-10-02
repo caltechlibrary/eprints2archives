@@ -34,7 +34,9 @@ from   time import sleep
 import urllib
 from   urllib.parse import quote_plus, urlencode
 
-from ..debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from ..exceptions import *
 from ..interruptions import interrupted, wait
 from ..network import net, hostname

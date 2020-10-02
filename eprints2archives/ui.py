@@ -66,7 +66,9 @@ from   rich.theme import Theme
 import shutil
 import sys
 
-from .debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from .exceptions import *
 
 

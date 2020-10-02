@@ -18,7 +18,9 @@ from   pubsub import pub
 import sys
 from   threading import Thread
 
-from .debug import set_debug, log
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from .exceptions import *
 from .interruptions import interrupt
 

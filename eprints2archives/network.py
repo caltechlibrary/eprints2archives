@@ -20,7 +20,9 @@ import ssl
 import tldextract
 import urllib
 
-from .debug import log
+if __debug__:
+    from sidetrack import set_debug, log, logr
+
 from .exceptions import *
 from .interruptions import wait, interrupted
 
