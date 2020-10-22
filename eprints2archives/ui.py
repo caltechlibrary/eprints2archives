@@ -262,15 +262,16 @@ class CLI(UIBase):
         self._console = Console(theme = _CLI_THEME,
                                 color_system = "auto" if use_color else None)
 
-        # We need the plain_text version in any case, to calculate length.
-        plain_text = f'Welcome to {name}: {subtitle}'
-        fancy_text = f'Welcome to [bold chartreuse1]{name}[/]: {subtitle}'
-        text = fancy_text if self._use_color else plain_text
-        terminal_width = shutil.get_terminal_size().columns or 80
-        padding = (terminal_width - len(plain_text) - 2) // 2
-        # Queueing up this message now will make it the 1st thing printed.
-        self._print_or_queue(Panel(text, style = 'green3', box = HEAVY,
-                                   padding = (0, padding)), style = 'green3')
+        if not be_quiet:
+            # We need the plain_text version in any case, to calculate length.
+            plain_text = f'Welcome to {name}: {subtitle}'
+            fancy_text = f'Welcome to [bold chartreuse1]{name}[/]: {subtitle}'
+            text = fancy_text if self._use_color else plain_text
+            terminal_width = shutil.get_terminal_size().columns or 80
+            padding = (terminal_width - len(plain_text) - 2) // 2
+            # Queueing up this message now will make it the 1st thing printed.
+            self._print_or_queue(Panel(text, style = 'green3', box = HEAVY,
+                                       padding = (0, padding)), style = 'green3')
 
 
     def start(self):
