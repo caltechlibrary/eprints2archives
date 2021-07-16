@@ -15,6 +15,7 @@ file "LICENSE" for more information.
 '''
 
 from   commonpy.network_utils import net, hostname
+from   commonpy.exceptions import NoContent, AuthenticationFailure, RateLimitExceeded
 from   humanize import intcomma
 import requests
 from   time import sleep

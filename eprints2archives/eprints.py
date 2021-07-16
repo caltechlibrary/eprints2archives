@@ -17,6 +17,7 @@ file "LICENSE" for more information.
 import codecs
 from   collections import defaultdict
 from   commonpy.network_utils import net, hostname, scheme, netloc
+from   commonpy.exceptions import NoContent, AuthenticationFailure, RateLimitExceeded
 import httpx
 from   lxml import etree, html
 import os
@@ -398,7 +399,7 @@ class EPrintServer():
         url = self._api_url
         start = url.find('//')
         if start < 0:
-            raise BadURL(f'Unable to parse "{url}" as a normal URL')
+            raise ValueError(f'Unable to parse "{url}" as a normal URL')
         if self._user and self._password:
             endpoint = url[:start + 2] + self._user + ':' + self._password + '@' + url[start + 2:] + op
         elif self._user and not self._password:
