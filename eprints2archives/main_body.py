@@ -179,7 +179,7 @@ class MainBody(Thread):
         server = EPrintServer(self.api_url, self.user, self.password)
         available = self._eprints_index(server)
         if not available:
-            raise NoContent(f'Received empty list from {server}.')
+            raise ServerError(f'Received empty list from {server}.')
         self._report(f'EPrints server at {self.api_url} has {len(available)} records.')
 
         # If the user wants specific records, check which ones actually exist.
