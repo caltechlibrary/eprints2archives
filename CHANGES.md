@@ -1,6 +1,13 @@
 Change log for eprints2archives
 ===============================
 
+Version 1.3.2
+-------------
+
+* Update internal imports and some requirements.
+* Use [CommonPy](https://github.com/caltechlibrary/commonpy) network utilities instead of internal copy.
+
+
 Version 1.3.1
 -------------
 
