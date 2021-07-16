@@ -20,7 +20,7 @@ import plac
 import sys
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import set_debug, log
 
 import eprints2archives
 from   eprints2archives import print_version
@@ -215,7 +215,7 @@ Return values
 ~~~~~~~~~~~~~
 
 This program exits with a return code of 0 if no problems are encountered.
-It returns a nonzero value otherwise, following conventions used in shells
+It returns a nonzero value otherwise, following the conventions used in shells
 such as bash which only understand return code values of 0 to 255. The
 following table lists the possible return values:
 
@@ -313,7 +313,7 @@ Command-line options summary
             from traceback import format_exception
             msg = str(exception[1])
             details = ''.join(format_exception(*exception))
-            if __debug__: logr(f'Exception: {msg}\n{details}')
+            if __debug__: log(f'Exception: {msg}\n{details}')
             if debugging:
                 import pdb; pdb.set_trace()
             if manager:

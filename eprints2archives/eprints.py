@@ -16,6 +16,7 @@ file "LICENSE" for more information.
 
 import codecs
 from   collections import defaultdict
+from   commonpy.network_utils import net, hostname, scheme, netloc
 import httpx
 from   lxml import etree, html
 import os
@@ -25,11 +26,10 @@ import ssl
 import validators
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from .data_helpers import parse_datetime, unique
 from .exceptions import *
-from .network import net, hostname, scheme, netloc
 from .ui import warn, alert
 
 
@@ -55,7 +55,7 @@ class EPrintServer():
         # C.f. https://docs.python.org/3/library/ssl.html#ssl.SSLContext
         ssl_config = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         ssl_config.options &= ~ssl.OP_NO_SSLv3
-        timeout = httpx.Timeout(connect = 30, read = 30, write = 30)
+        timeout = httpx.Timeout(30, connect = 30, read = 30, write = 30)
         self._client = httpx.Client(timeout = timeout, http2 = True, verify = ssl_config)
 
         # Do this after the above b/c it needs the network client to be set up.

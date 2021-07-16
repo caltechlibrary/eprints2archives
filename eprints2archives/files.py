@@ -23,11 +23,9 @@ import sys
 import tarfile
 import tempfile
 import webbrowser
-import zipfile
-from   zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 
 # Constants.

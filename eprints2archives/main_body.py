@@ -14,6 +14,7 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   commonpy.network_utils import network_available, netloc
 from   concurrent.futures import ThreadPoolExecutor
 from   humanize import intcomma
 from   itertools import repeat
@@ -26,7 +27,7 @@ import time
 from   validators.url import url as valid_url
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from .data_helpers import DATE_FORMAT, slice, expand_range, plural
 from .data_helpers import timestamp, parse_datetime
@@ -35,7 +36,6 @@ from .exceptions import *
 from .exit_codes import ExitCode
 from .interruptions import interrupted, raise_for_interrupts
 from .files import writable
-from .network import network_available, hostname, scheme, netloc
 from .services import ServiceStatus, service_names, service_interfaces, service_by_name
 from .ui import inform, warn, alert, alert_fatal
 

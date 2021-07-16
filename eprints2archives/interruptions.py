@@ -22,7 +22,7 @@ file "LICENSE" for more information.
 import threading
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from .exceptions import *
 

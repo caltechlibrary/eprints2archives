@@ -19,7 +19,7 @@ import sys
 from   threading import Thread
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from .exceptions import *
 from .interruptions import interrupt

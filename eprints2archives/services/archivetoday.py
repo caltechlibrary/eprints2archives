@@ -28,6 +28,7 @@ file "LICENSE" for more information.
 '''
 
 from   collections import OrderedDict
+from   commonpy.network_utils import net, hostname
 from   humanize import intcomma
 import requests
 from   time import sleep
@@ -35,11 +36,10 @@ import urllib
 from   urllib.parse import quote_plus, urlencode
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from ..exceptions import *
 from ..interruptions import interrupted, wait
-from ..network import net, hostname
 from ..ui import warn
 
 from .base import Service
