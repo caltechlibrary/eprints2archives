@@ -37,28 +37,12 @@ class UserCancelled(Eprints2ArchivesException):
     '''The user elected to cancel/quit the program.'''
     pass
 
-class NetworkFailure(Eprints2ArchivesException):
-    '''Unrecoverable problem involving network operations.'''
-    pass
-
-class NoContent(Eprints2ArchivesException):
-    '''No content found at the given location.'''
-    pass
-
 class CorruptedContent(Eprints2ArchivesException):
     '''Content corruption has been detected.'''
     pass
 
-class AuthenticationFailure(Eprints2ArchivesException):
-    '''Problem obtaining or using authentication credentials.'''
-    pass
-
-class ServiceFailure(Eprints2ArchivesException):
-    '''Unrecoverable problem involving a remote service.'''
-    pass
-
-class RateLimitExceeded(Eprints2ArchivesException):
-    '''The service flagged reports that its rate limits have been exceeded.'''
+class ServerError(Eprints2ArchivesException):
+    '''Unrecoverable problem involving the EPrints server.'''
     pass
 
 class InternalError(Eprints2ArchivesException):
