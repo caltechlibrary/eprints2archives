@@ -14,8 +14,10 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-from   commonpy.network_utils import net, hostname
+from   bun import inform, alert, alert_fatal, warn
 from   commonpy.exceptions import NoContent, AuthenticationFailure, RateLimitExceeded
+from   commonpy.interrupt import interrupted, wait
+from   commonpy.network_utils import net, hostname
 from   humanize import intcomma
 import requests
 from   time import sleep
@@ -24,8 +26,6 @@ if __debug__:
     from sidetrack import log
 
 from ..exceptions import *
-from ..interruptions import wait
-from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict, timemap_mementos

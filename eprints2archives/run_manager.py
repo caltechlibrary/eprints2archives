@@ -14,6 +14,7 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   commonpy.interrupt import interrupt
 from   pubsub import pub
 import sys
 from   threading import Thread
@@ -22,7 +23,6 @@ if __debug__:
     from sidetrack import log
 
 from .exceptions import *
-from .interruptions import interrupt
 
 
 # Class definitions.

@@ -14,8 +14,11 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
-import os
-from   os import path, cpu_count
+from   bun import UI, inform, alert, alert_fatal, warn
+from   commonpy.data_utils import timestamp
+from   commonpy.file_utils import readable
+from   commonpy.interrupt import config_interrupt, interrupt
+from   os import cpu_count
 import plac
 import sys
 
@@ -25,15 +28,11 @@ if __debug__:
 import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
-from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime, timestamp
 from   .exceptions import *
 from   .exit_codes import ExitCode
-from   .files import readable
-from   .interruptions import interrupt, interrupted
 from   .main_body import MainBody
 from   .run_manager import RunManager
 from   .services import service_names
-from   .ui import UI, inform, warn, alert, alert_fatal
 
 
 # Main program.
@@ -286,6 +285,7 @@ Command-line options summary
                         quit_on_error = error_out,
                         force = force,
                         report_file = None if report == 'R' else report)
+        config_interrupt(body.stop, UserCancelled(ExitCode.user_interrupt))
         manager = RunManager()
         manager.run(ui, body)
         exception = body.exception

@@ -14,6 +14,12 @@ is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   bun import inform, alert, alert_fatal, warn
+from   commonpy.data_utils import DATE_FORMAT, slice, expanded_range, pluralized
+from   commonpy.data_utils import timestamp, parsed_datetime
+from   commonpy.exceptions import NoContent, AuthenticationFailure, ServiceFailure
+from   commonpy.file_utils import writable
+from   commonpy.interrupt import interrupted, raise_for_interrupts
 from   commonpy.network_utils import network_available, netloc
 from   concurrent.futures import ThreadPoolExecutor
 from   humanize import intcomma
@@ -29,15 +35,10 @@ from   validators.url import url as valid_url
 if __debug__:
     from sidetrack import log
 
-from .data_helpers import DATE_FORMAT, slice, expand_range, plural
-from .data_helpers import timestamp, parse_datetime
 from .eprints import *
 from .exceptions import *
 from .exit_codes import ExitCode
-from .interruptions import interrupted, raise_for_interrupts
-from .files import writable
 from .services import ServiceStatus, service_names, service_interfaces, service_by_name
-from .ui import inform, warn, alert, alert_fatal
 
 
 # Constants.
@@ -131,7 +132,7 @@ class MainBody(Thread):
 
         if self.lastmod:
             try:
-                self.lastmod = parse_datetime(self.lastmod)
+                self.lastmod = parsed_datetime(self.lastmod)
                 self.lastmod_str = self.lastmod.strftime(DATE_FORMAT)
                 if __debug__: log(f'parsed lastmod as {self.lastmod_str}')
             except Exception as ex:
@@ -220,7 +221,7 @@ class MainBody(Thread):
                 eprintid = server.eprint_field_value(r, 'eprintid')
                 modtime  = server.eprint_field_value(r, 'lastmod')
                 status   = server.eprint_field_value(r, 'eprint_status')
-                if self.lastmod and modtime and parse_datetime(modtime) < self.lastmod:
+                if self.lastmod and modtime and parsed_datetime(modtime) < self.lastmod:
                     if __debug__: log(f'{eprintid} lastmod == {modtime} -- skipping')
                     skipped.append(r)
                     continue
@@ -278,6 +279,8 @@ class MainBody(Thread):
                     failure = f'Server has no content for {item}'
                 except AuthenticationFailure as ex:
                     failure = f'Authentication failure trying to get data for {item}'
+                except ServiceFailure as ex:
+                    failure = f'{str(ex)} trying to get data for {item}'
                 except Exception as ex:
                     raise ex
                 if failure:
@@ -359,11 +362,11 @@ class MainBody(Thread):
         num_urls = len(urls_to_send)
         num_dest = len(self.dest)
 
-        inform(f'We have a total of {intcomma(num_urls)} {plural("URL", num_urls)}'
-               + f' to send to {num_dest} {plural("archive", num_dest)}.')
+        inform(f'We have a total of {pluralized("URL", num_urls, True)}'
+               + f' to send to {pluralized("archive", num_dest, True)}.')
         if self.force:
             inform('Force option given ⟹  adding URLs even if archives have copies.')
-        self._report(f'Sending {num_urls} URLs to {num_dest} {plural("service", num_dest)}.')
+        self._report(f'Sending {num_urls} URLs to {pluralized("service", num_dest, True)}.')
 
         # Helper function: send urls to given service & use progress bar.
         def send_to_service(dest, prog):
@@ -471,7 +474,7 @@ def parsed_id_list(id_list):
     # Didn't find a file.  Try to parse as multiple numbers.
     if ',' not in id_list and '-' not in id_list:
         raise ValueError('Unable to understand list of record identifiers')
-    return list(flatten(expand_range(x) for x in id_list.split(',')))
+    return list(flatten(expanded_range(x) for x in id_list.split(',')))
 
 
 def fmt_statuses(status_list, negated):
