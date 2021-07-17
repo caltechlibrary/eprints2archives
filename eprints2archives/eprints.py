@@ -302,6 +302,12 @@ class EPrintServer():
         if __debug__: log(f'getting XML for {eprintid} from server')
         try:
             response = self._get_authenticated(f'/eprint/{eprintid}.xml')
+        except NoContent as ex:
+            if __debug__: log(f'No content for /eprint/{eprintid}.xml')
+            raise
+        except AuthenticationFailure as ex:
+            if __debug__: log(f'Auth failure for /eprint/{eprintid}.xml')
+            raise
         except Exception as ex:
             # Our EPrints server sometimes returns with access forbidden for
             # specific records.  Our caller may simply move on, so we store
@@ -342,10 +348,10 @@ class EPrintServer():
                     response = self._get_authenticated(field_url)
                 except NoContent as ex:
                     if __debug__: log(f'No content for {field} in {id_or_record}')
-                    return None
+                    raise
                 except AuthenticationFailure as ex:
                     if __debug__: log(f'Auth failure for {field} in {id_or_record}')
-                    return None
+                    raise
                 except Exception as ex:
                     if __debug__: log(f'{str(ex)} for {field} in {id_or_record}')
                     raise
