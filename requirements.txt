@@ -1,5 +1,13 @@
+# =============================================================================
+# @file    requirements.txt
+# @brief   Python dependencies for eprints2archives
+# @license Please see the file named LICENSE in the project directory
+# @website https://github.com/caltechlibrary/eprints2archives
+# =============================================================================
+
 aenum           >= 2.2.3
 appdirs         >= 1.4.3
+bun             >= 0.0.7
 commonpy        >= 1.3.9
 cssselect       >= 1.1.0
 dateparser      >= 0.7.0
