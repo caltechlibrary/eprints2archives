@@ -230,7 +230,7 @@ We would be happy to receive your help and participation with enhancing `eprints
 License
 -------
 
-Software produced by the Caltech Library is Copyright (C) 2020, Caltech.  This software is freely distributed under a BSD/MIT type license.  Please see the [LICENSE](LICENSE) file for more information.
+Software produced by the Caltech Library is Copyright (C) 2020&ndash;2021, Caltech.  This software is freely distributed under a BSD/MIT type license.  Please see the [LICENSE](LICENSE) file for more information.
 
 
 Authors and history
@@ -246,6 +246,7 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 
 * [aenum](https://pypi.org/project/aenum/) &ndash; advanced enumerations for Python
 * [appdirs](https://github.com/ActiveState/appdirs) &ndash; determine the appropriate app dirs on different OSes
+* [bun](https://github.com/caltechlibrary/bun) &ndash; a set of basic user interface classes and functions
 * [CommonPy](https://github.com/caltechlibrary/commonpy) &ndash; a collection of commonly-useful Python functions
 * [cssselect](https://pypi.org/project/cssselect/) &ndash; `lxml` add-on to parse CSS3 selectors 
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
