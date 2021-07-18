@@ -300,13 +300,13 @@ class MainBody(Thread):
             return results
 
         server_name = f'[sea_green2]{server}[/]'
-        header  = f'[green3]Gathering {description} from {server_name} ...'
+        header  = f'[dark_sea_green4]Gathering {description} from {server_name} ...'
         return self._gathered(record_values, items_list, header)
 
 
     def _eprints_index(self, server):
         '''Return the index from the server, getting it with a progress bar.'''
-        header = f'[green3]Getting full EPrints index from [sea_green2]{server}[/] ...'
+        header = f'[dark_sea_green4]Getting full EPrints index from [sea_green2]{server}[/] ...'
         with Progress('[progress.description]{task.description}', _BAR) as progress:
             bar = progress.add_task(header, start = False)
             progress.update(bar)
@@ -323,7 +323,7 @@ class MainBody(Thread):
         XML objects that is used to limit the pages under /view to be returned.
         Otherwise, if no "subset" list is given, all /view pages are returned.
         '''
-        header = '[green3]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
+        header = '[dark_sea_green4]Looking through /view pages for URLs ...' + ' '*(len(str(server)) - 4)
         with Progress('[progress.description]{task.description}', _BAR) as progress:
             bar = progress.add_task(header, start = False)
             progress.update(bar)
@@ -353,7 +353,7 @@ class MainBody(Thread):
             return urls
 
         server_name = f'[sea_green2]{server}[/]'
-        header  = f'[green3]Checking variant record URLs on {server_name} ...'
+        header  = f'[dark_sea_green4]Checking variant record URLs on {server_name} ...'
         return self._gathered(eprints_urls, records_list, header)
 
 
@@ -489,7 +489,7 @@ def fmt_statuses(status_list, negated):
 def activity(dest, status):
     name = f'[{dest.color}]{dest.name}[/]'
     if status == ServiceStatus.RUNNING:
-        return f'[green3]Sending URLs to {name} ...                     '
+        return f'[dark_sea_green4]Sending URLs to {name} ...                     '
     elif status == ServiceStatus.PAUSED_RATE_LIMIT:
         return f'[yellow3 on grey35]Paused for rate limit {name} ...               '
     elif status == ServiceStatus.PAUSED_ERROR:
