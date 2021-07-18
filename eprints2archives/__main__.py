@@ -91,9 +91,11 @@ information directly on the command line using the -u and -p options (or /u
 and /p on Windows), but this is discouraged because it is insecure on
 multiuser computer systems. (However, if you need to reset the user name and/or
 password for some reason, use -u with a user name and let it prompt for a
-password again.)  If a given EPrints server does not require a user name and
-password, do not use -u or -p and supply blank values when prompted for them
-by eprints2archives. (Empty user name and password are allowed values.)
+password again.)
+
+If a given EPrints server does not require a user name and password, supply
+blank values when prompted for them by eprints2archives and do not use the
+options -u or -p. (Empty user name and password are allowed values.)
 
 Specifying which records to send
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
