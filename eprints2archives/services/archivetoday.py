@@ -29,7 +29,7 @@ file "LICENSE" for more information.
 
 from   bun import inform, alert, alert_fatal, warn
 from   collections import OrderedDict
-from   commonpy.exceptions import NoContent, AuthenticationFailure, RateLimitExceeded
+from   commonpy.exceptions import NoContent, ServiceFailure
 from   commonpy.interrupt import interrupted, wait
 from   commonpy.network_utils import net, hostname
 from   humanize import intcomma
