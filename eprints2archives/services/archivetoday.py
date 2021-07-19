@@ -121,7 +121,7 @@ separately from error conditions.'''
 class ArchiveToday(Service):
     label = 'archive.today'
     name = 'Archive.today'
-    color = 'yellow'
+    color = 'deep_sky_blue1'
 
     _host = None                        # archive.il or archive.is or ...
     _sid  = None                        # current submit id value
