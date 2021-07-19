@@ -18,6 +18,7 @@ from   bun import UI, inform, alert, alert_fatal, warn
 from   commonpy.data_utils import timestamp
 from   commonpy.file_utils import readable
 from   commonpy.interrupt import config_interrupt, interrupt
+import os
 from   os import cpu_count
 import plac
 import sys
@@ -321,7 +322,12 @@ Command-line options summary
             if manager:
                 manager.stop()
     if __debug__: log('_'*8 + f' stopped {timestamp()} ' + '_'*8)
-    exit(exit_code.value[0])
+    if exit_code == ExitCode.user_interrupt:
+        # This is a sledgehammer, but it kills everything, including ongoing
+        # network get/post. I have not found a more reliable way to interrupt.
+        os._exit(exit_code.value[0])
+    else:
+        exit(exit_code.value[0])
 
 
 # Main entry point.

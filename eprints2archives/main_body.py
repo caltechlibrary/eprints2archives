@@ -94,10 +94,7 @@ class MainBody(Thread):
         except (KeyboardInterrupt, UserCancelled) as ex:
             if __debug__: log(f'got {type(ex).__name__}')
             self._report('Interrupted')
-            self.exception = ex
-        except CannotProceed as ex:
-            if __debug__: log(f'got CannotProceed')
-            self.exception = (CannotProceed, ex)
+            self.exception = (ex, ex)
         except Exception as ex:
             if __debug__: log(f'exception in main body: {str(ex)}')
             self.exception = sys.exc_info()
