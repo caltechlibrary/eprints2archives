@@ -9,13 +9,17 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2020 by the California Institute of Technology.  This code is
-open-source software released under a 3-clause BSD license.  Please see the
+Copyright (c) 2020-2021 by the California Institute of Technology.  This code
+is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   bun import alert, alert_fatal, warn
 import codecs
 from   collections import defaultdict
+from   commonpy.data_utils import parsed_datetime, unique
+from   commonpy.network_utils import net, hostname, scheme, netloc
+from   commonpy.exceptions import NoContent, AuthenticationFailure, RateLimitExceeded
 import httpx
 from   lxml import etree, html
 import os
@@ -25,12 +29,9 @@ import ssl
 import validators
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
-from .data_helpers import parse_datetime, unique
 from .exceptions import *
-from .network import net, hostname, scheme, netloc
-from .ui import warn, alert
 
 
 # Constants.
@@ -55,7 +56,7 @@ class EPrintServer():
         # C.f. https://docs.python.org/3/library/ssl.html#ssl.SSLContext
         ssl_config = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         ssl_config.options &= ~ssl.OP_NO_SSLv3
-        timeout = httpx.Timeout(connect = 30, read = 30, write = 30)
+        timeout = httpx.Timeout(30, connect = 30, read = 30, write = 30)
         self._client = httpx.Client(timeout = timeout, http2 = True, verify = ssl_config)
 
         # Do this after the above b/c it needs the network client to be set up.
@@ -301,6 +302,12 @@ class EPrintServer():
         if __debug__: log(f'getting XML for {eprintid} from server')
         try:
             response = self._get_authenticated(f'/eprint/{eprintid}.xml')
+        except NoContent as ex:
+            if __debug__: log(f'No content for /eprint/{eprintid}.xml')
+            raise
+        except AuthenticationFailure as ex:
+            if __debug__: log(f'Auth failure for /eprint/{eprintid}.xml')
+            raise
         except Exception as ex:
             # Our EPrints server sometimes returns with access forbidden for
             # specific records.  Our caller may simply move on, so we store
@@ -341,10 +348,10 @@ class EPrintServer():
                     response = self._get_authenticated(field_url)
                 except NoContent as ex:
                     if __debug__: log(f'No content for {field} in {id_or_record}')
-                    return None
+                    raise
                 except AuthenticationFailure as ex:
                     if __debug__: log(f'Auth failure for {field} in {id_or_record}')
-                    return None
+                    raise
                 except Exception as ex:
                     if __debug__: log(f'{str(ex)} for {field} in {id_or_record}')
                     raise
@@ -398,7 +405,7 @@ class EPrintServer():
         url = self._api_url
         start = url.find('//')
         if start < 0:
-            raise BadURL(f'Unable to parse "{url}" as a normal URL')
+            raise ValueError(f'Unable to parse "{url}" as a normal URL')
         if self._user and self._password:
             endpoint = url[:start + 2] + self._user + ':' + self._password + '@' + url[start + 2:] + op
         elif self._user and not self._password:

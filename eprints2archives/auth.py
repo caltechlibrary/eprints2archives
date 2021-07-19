@@ -9,7 +9,7 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2018-2020 by the California Institute of Technology.  This code
+Copyright (c) 2018-2021 by the California Institute of Technology.  This code
 is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
@@ -26,7 +26,7 @@ if sys.platform.startswith('darwin'):
     from keyring.backends.OS_X import Keyring
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log, logf
 
 
 # Global constants.
@@ -110,7 +110,7 @@ class AuthHandler():
         # If user name is provided and password is provided, use them.
         # If no user name is provided, look in keyring & prompt if not there.
 
-        if __debug__: log('keyring {}', 'enabled' if self._use_keyring else 'disabled')
+        if __debug__: logf('keyring {}', 'enabled' if self._use_keyring else 'disabled')
         tmp_user = user if user is not None else self._user
         tmp_pswd = password if password is not None else self._pswd
         if (tmp_user is None and tmp_pswd is None) and self._use_keyring:

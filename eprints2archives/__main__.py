@@ -9,31 +9,31 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2020 by the California Institute of Technology.  This code
+Copyright (c) 2020-2021 by the California Institute of Technology.  This code
 is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   bun import UI, inform, alert, alert_fatal, warn
+from   commonpy.data_utils import timestamp
+from   commonpy.file_utils import readable
+from   commonpy.interrupt import config_interrupt, interrupt
 import os
-from   os import path, cpu_count
+from   os import cpu_count
 import plac
 import sys
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import set_debug, log
 
 import eprints2archives
 from   eprints2archives import print_version
 from   .auth import AuthHandler
-from   .data_helpers import DATE_FORMAT, expand_range, parse_datetime, timestamp
 from   .exceptions import *
 from   .exit_codes import ExitCode
-from   .files import readable
-from   .interruptions import interrupt, interrupted
 from   .main_body import MainBody
 from   .run_manager import RunManager
 from   .services import service_names
-from   .ui import UI, inform, warn, alert, alert_fatal
 
 
 # Main program.
@@ -92,9 +92,11 @@ information directly on the command line using the -u and -p options (or /u
 and /p on Windows), but this is discouraged because it is insecure on
 multiuser computer systems. (However, if you need to reset the user name and/or
 password for some reason, use -u with a user name and let it prompt for a
-password again.)  If a given EPrints server does not require a user name and
-password, do not use -u or -p and supply blank values when prompted for them
-by eprints2archives. (Empty user name and password are allowed values.)
+password again.)
+
+If a given EPrints server does not require a user name and password, supply
+blank values when prompted for them by eprints2archives and do not use the
+options -u or -p. (Empty user name and password are allowed values.)
 
 Specifying which records to send
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -215,7 +217,7 @@ Return values
 ~~~~~~~~~~~~~
 
 This program exits with a return code of 0 if no problems are encountered.
-It returns a nonzero value otherwise, following conventions used in shells
+It returns a nonzero value otherwise, following the conventions used in shells
 such as bash which only understand return code values of 0 to 255. The
 following table lists the possible return values:
 
@@ -286,6 +288,7 @@ Command-line options summary
                         quit_on_error = error_out,
                         force = force,
                         report_file = None if report == 'R' else report)
+        config_interrupt(body.stop, UserCancelled(ExitCode.user_interrupt))
         manager = RunManager()
         manager.run(ui, body)
         exception = body.exception
@@ -313,13 +316,18 @@ Command-line options summary
             from traceback import format_exception
             msg = str(exception[1])
             details = ''.join(format_exception(*exception))
-            if __debug__: logr(f'Exception: {msg}\n{details}')
+            if __debug__: log(f'Exception: {msg}\n{details}')
             if debugging:
                 import pdb; pdb.set_trace()
             if manager:
                 manager.stop()
     if __debug__: log('_'*8 + f' stopped {timestamp()} ' + '_'*8)
-    exit(exit_code.value[0])
+    if exit_code == ExitCode.user_interrupt:
+        # This is a sledgehammer, but it kills everything, including ongoing
+        # network get/post. I have not found a more reliable way to interrupt.
+        os._exit(exit_code.value[0])
+    else:
+        exit(exit_code.value[0])
 
 
 # Main entry point.

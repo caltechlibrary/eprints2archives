@@ -1,6 +1,17 @@
 Change log for eprints2archives
 ===============================
 
+Version 1.3.2
+-------------
+
+* Fix a mixhandled exception when a server returns a code 500.
+* Improve catching interrupts on Windows.
+* Use [CommonPy](https://github.com/caltechlibrary/commonpy) network utilities, file utilities, and data utilities instead of internal copies.
+* Use [Bun](https://github.com/caltechlibrary/bun) user interface code instead of internal copy. Also change some colors of messages printed by `eprints2archives`.
+* Update internal imports and some requirements.
+* Update copyright year.
+
+
 Version 1.3.1
 -------------
 

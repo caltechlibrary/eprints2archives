@@ -71,7 +71,9 @@ For help with usage at any time, run `eprints2archives` with the option `-h` (or
 
 `eprints2archives` contacts the EPrints server whose web address is given as the value to the option `-a` (or `/a` on Windows).  A typical EPrints server REST API will have a URL of the form `https://server.institution.edu/rest`, but you can give it just `https://server.institution.edu` and `eprints2archives` will add the `/rest` part if it is missing.  Note that **a value for `-a` is required**; it cannot infer the server address on its own.
 
-Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask for the user name and password, and then (unless the `-K` option &ndash; or `/K` on Windows &ndash; is given) store them in your keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  If the EPrints server does not require a user name and password, do not use `-u` or `-p`, and supply blank values when prompted for them by `eprints2archives`. (Empty user name and password are allowed values.)
+Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask for the user name and password, and then (unless the `-K` option &ndash; or `/K` on Windows &ndash; is given) store them in your keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  
+
+If a given EPrints server does not require a user name and password, **supply blank values** when prompted for them by eprints2archives and do not use the options `-u` or `-p`. (Empty user name and password are allowed values.)
 
 
 ### How the list of records is determined
@@ -230,7 +232,7 @@ We would be happy to receive your help and participation with enhancing `eprints
 License
 -------
 
-Software produced by the Caltech Library is Copyright (C) 2020, Caltech.  This software is freely distributed under a BSD/MIT type license.  Please see the [LICENSE](LICENSE) file for more information.
+Software produced by the Caltech Library is Copyright (C) 2020&ndash;2021, Caltech.  This software is freely distributed under a BSD/MIT type license.  Please see the [LICENSE](LICENSE) file for more information.
 
 
 Authors and history
@@ -246,10 +248,11 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 
 * [aenum](https://pypi.org/project/aenum/) &ndash; advanced enumerations for Python
 * [appdirs](https://github.com/ActiveState/appdirs) &ndash; determine the appropriate app dirs on different OSes
+* [bun](https://github.com/caltechlibrary/bun) &ndash; a set of basic user interface classes and functions
+* [CommonPy](https://github.com/caltechlibrary/commonpy) &ndash; a collection of commonly-useful Python functions
 * [cssselect](https://pypi.org/project/cssselect/) &ndash; `lxml` add-on to parse CSS3 selectors 
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
 * [dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
-* [distro](https://github.com/nir0s/distro) &ndash; get info about the OS distribution running the current computer
 * [h2](https://pypi.org/project/h2) &ndash; HTTP/2 support library used by [HTTPX](https://www.python-httpx.org)
 * [httpx](https://www.python-httpx.org) &ndash; Python HTTP client library that supports HTTP/2
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
@@ -261,6 +264,8 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [pypubsub](https://github.com/schollii/pypubsub) &ndash; a publish-and-subscribe message-passing library for Python
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
+* [sidetrack](https://github.com/caltechlibrary/sidetrack) &ndash; simple debug logging/tracing package
+* [stopit](https://pypi.org/project/stopit/) &ndash; raise asynchronous exceptions
 * [tldextract](https://github.com/john-kurkowski/tldextract) &ndash; module to parse domains from URLs
 * [urllib3](https://urllib3.readthedocs.io/en/latest/) &ndash; HTTP client library for Python
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python

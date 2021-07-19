@@ -22,12 +22,16 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2020 by the California Institute of Technology.  This code
+Copyright (c) 2020-2021 by the California Institute of Technology.  This code
 is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   bun import inform, alert, alert_fatal, warn
 from   collections import OrderedDict
+from   commonpy.exceptions import NoContent, ServiceFailure
+from   commonpy.interrupt import interrupted, wait
+from   commonpy.network_utils import net, hostname
 from   humanize import intcomma
 import requests
 from   time import sleep
@@ -35,12 +39,9 @@ import urllib
 from   urllib.parse import quote_plus, urlencode
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from ..exceptions import *
-from ..interruptions import interrupted, wait
-from ..network import net, hostname
-from ..ui import warn
 
 from .base import Service
 from .timemap import timemap_as_dict, timemap_mementos
@@ -120,7 +121,7 @@ separately from error conditions.'''
 class ArchiveToday(Service):
     label = 'archive.today'
     name = 'Archive.today'
-    color = 'yellow'
+    color = 'deep_sky_blue1'
 
     _host = None                        # archive.il or archive.is or ...
     _sid  = None                        # current submit id value

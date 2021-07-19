@@ -9,20 +9,20 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2018-2020 by the California Institute of Technology.  This code
+Copyright (c) 2018-2021 by the California Institute of Technology.  This code
 is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
 
+from   commonpy.interrupt import interrupt
 from   pubsub import pub
 import sys
 from   threading import Thread
 
 if __debug__:
-    from sidetrack import set_debug, log, logr
+    from sidetrack import log
 
 from .exceptions import *
-from .interruptions import interrupt
 
 
 # Class definitions.

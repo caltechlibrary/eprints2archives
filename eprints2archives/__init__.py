@@ -9,7 +9,7 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2020 by the California Institute of Technology.  This code
+Copyright (c) 2020-2021 by the California Institute of Technology.  This code
 is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
@@ -21,7 +21,7 @@ file "LICENSE" for more information.
 #  |    by the Makefile. Manual changes to these values will be lost.      |
 #  ╰────────────────────── Notice ── Notice ── Notice ─────────────────────╯
 
-__version__     = '1.3.1'
+__version__     = '1.3.2'
 __description__ = 'Send EPrints URLs to the Internet Archive and other archives'
 __url__         = 'https://github.com/caltechlibrary/eprints2archives'
 __author__      = 'Michael Hucka'
