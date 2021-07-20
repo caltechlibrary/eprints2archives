@@ -28,3 +28,10 @@ stopit          >= 1.1.2
 tldextract      >= 2.2.3
 urllib3         >= 1.23
 validators      >= 0.12.3
+
+# eprints2archives itself does not need the following, but Rich imports it,
+# and for reasons I haven't figured out it is not installed by pip when it
+# installs Rich during the creation of our pyz executables.  That causes
+# our pyz executables to fail at run time.  So, let's import it ourselves.
+
+typing_extensions >= 3.10.0
