@@ -1,6 +1,14 @@
 Change log for eprints2archives
 ===============================
 
+Version 1.3.3
+-------------
+
+* Add requirement for a package imported by another requirement but that does not, for some reason, get imported properly when a clean virtual environment is created in the process of making pyz apps.
+* Update all requirement versions to latest versions of packages. This was not done for over a year and it showed...
+* Define `console_scripts` for setuptools to produce a better wrapper script.
+
+
 Version 1.3.2
 -------------
 
