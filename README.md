@@ -45,7 +45,7 @@ python3 --version
 Note: if you are using macOS Catalina (10.15) or later and have never run `python3`, then the first time you do, macOS will ask you if you want to install the macOS command-line developer tools.  Go ahead and do so, as this is the easiest way to get a recent-enough Python&nbsp;3 on those systems.
 
 
-### Approach 1: Using the standalone executables
+### Approach 1: using the standalone executables
 
 Beginning with version 1.3.2, runnable self-contained single-file executables are available for select operating system and Python version combinations &ndash; to use them, you **only** need a Python&nbsp;3 interpreter and a copy of `eprints2archives`, but **do not** need to run `pip install` or other steps. Please click on the relevant heading below to learn more.
 
