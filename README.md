@@ -1,5 +1,4 @@
-eprints2archives<img width="12%" align="right" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-icon.png">
-================
+# eprints2archives<img width="12%" align="right" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-icon.png">
 
 A program that can obtain records from an EPrints server and send them to public web archiving services such as the [the Wayback Machine at the Internet Archive](https://archive.org/web/) and others.
 
@@ -9,8 +8,8 @@ A program that can obtain records from an EPrints server and send them to public
 [![DOI](http://img.shields.io/badge/DOI-10.22002/D1.2042-blue.svg?style=flat-square)](https://data.caltech.edu/records/2042)
 [![PyPI](https://img.shields.io/pypi/v/eprints2archives.svg?style=flat-square&color=red)](https://pypi.org/project/eprints2archives/)
 
-Table of contents
------------------
+
+## Table of contents
 
 * [Introduction](#introduction)
 * [Installation](#installation)
@@ -24,8 +23,7 @@ Table of contents
 * [Acknowledgments](#authors-and-acknowledgments)
 
 
-Introduction
-------------
+## Introduction
 
 `eprints2archives` is a self-contained program to archive the web pages of an EPrints server in public web archiving sites such as the [Internet Archive](https://archive.org/web/).  It contacts an EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), determines the document URLs, extracts additional URLs by scraping pages under the `/view` section of the public site, and finally, sends the collected URLs to web archives.  Use-cases include archiving an server content ahead of migration to another system, and preserving contents in independent third-party archives.
 
@@ -36,8 +34,7 @@ The program is written in Python 3 and works over a network using an EPrints ser
 </p>
 
 
-Installation
-------------
+## Installation
 
 The instructions below assume you have a Python interpreter installed on your computer; if that's not the case, please first install Python version 3 and familiarize yourself with running Python programs on your system.
 
@@ -64,8 +61,7 @@ python -m eprints2archives /h
 ```
 
 
-Usage
------
+## Usage
 
 For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
 
@@ -195,14 +191,12 @@ This program exits with a return code of 0 if no problems are encountered.  It r
 ```
 
 
-Known issues and limitations
-----------------------------
+## Known issues and limitations
 
 Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 6 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
 
 
-Relationships to other similar tools
-------------------------------------
+## Relationships to other similar tools
 
 Other tools exist for sending content to web archives; some are general-purpose enough that they could be used to send EPrints server contents to web archives.  To the author's knowledge, `eprints2archives` is the only software designed specifically to work with EPrints servers to send content to multiple archiving destinations.
 
@@ -217,26 +211,22 @@ Most archiving tools work only with the [Internet Archive's Wayback Machine](htt
 [archive.today](https://github.com/dhamaniasad/archive.today) is one of the few tools for working with archives other than IA.  It is a simple command-line tool for sending content to and downloading from Archive.Today.
 
 
-Getting help
-------------
+## Getting help
 
 If you find an issue, please submit it in [the GitHub issue tracker](https://github.com/caltechlibrary/eprints2archives/issues) for this repository.
 
 
-Contributing
-------------
+## Contributing
 
 We would be happy to receive your help and participation with enhancing `eprints2archives`!  Please visit the [guidelines for contributing](CONTRIBUTING.md) for some tips on getting started.
 
 
-License
--------
+## License
 
 Software produced by the Caltech Library is Copyright (C) 2020&ndash;2021, Caltech.  This software is freely distributed under a BSD/MIT type license.  Please see the [LICENSE](LICENSE) file for more information.
 
 
-Authors and history
----------------------------
+## Authors and history
 
 This program was initially written in mid-2020, in response to discussions in Caltech's [Digital Library Development](https://www.library.caltech.edu/staff?&field_directory_department_name=Digital%20Library%20Development) group.
 
@@ -271,8 +261,7 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python
 
 
-Acknowledgments
----------------
+## Acknowledgments
 
 The [vector artwork](https://thenounproject.com/term/upload/2800646/) of a cloud and arrow contained within the logo for this repository was created by [Vimal](https://thenounproject.com/vimalraj2/) from the Noun Project.  It is licensed under the Creative Commons [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) license.
 
