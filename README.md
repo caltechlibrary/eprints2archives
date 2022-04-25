@@ -292,16 +292,15 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [CommonPy](https://github.com/caltechlibrary/commonpy) &ndash; a collection of commonly-useful Python functions
 * [cssselect](https://pypi.org/project/cssselect/) &ndash; `lxml` add-on to parse CSS3 selectors 
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
-* [dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [h2](https://pypi.org/project/h2) &ndash; HTTP/2 support library used by [HTTPX](https://www.python-httpx.org)
 * [httpx](https://www.python-httpx.org) &ndash; Python HTTP client library that supports HTTP/2
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
-* [ipdb](https://github.com/gotcha/ipdb) &ndash; the IPython debugger
 * [keyring](https://github.com/jaraco/keyring) &ndash; access the system keyring service from Python
 * [lxml](https://lxml.de) &ndash; an XML parsing library for Python
 * [plac](http://micheles.github.io/plac/) &ndash; a command line argument parser
-* [pydash]() &ndash; kitchen sink of Python utility libraries for doing “stuff” 
+* [pydash](https://github.com/dgilland/pydash) &ndash; “kitchen sink of Python utility libraries for doing ‘stuff’” 
 * [pypubsub](https://github.com/schollii/pypubsub) &ndash; a publish-and-subscribe message-passing library for Python
+* [python-dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
 * [sidetrack](https://github.com/caltechlibrary/sidetrack) &ndash; simple debug logging/tracing package
