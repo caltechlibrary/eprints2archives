@@ -6,6 +6,7 @@ Change log for eprints2archives
 Changes in this version:
 * Fix handling of occasionally unexpected timemap result from InternetArchive.
 * Update versions of some dependencies in `requirements.txt`.
+* Add of `CITATION.cff` file.
 
 
 ## Version 1.3.3
