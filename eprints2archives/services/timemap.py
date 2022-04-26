@@ -9,6 +9,9 @@ the file was e714c8ad3c41221b83b24fda1979844d03d83726.
 The license for OTMT at the time timemap.py was copied was the MIT license,
 https://github.com/oduwsdl/off-topic-memento-toolkit/blob/master/LICENSE.txt
 
+Since copying the original, I've made some alterations to this source code.
+The git history can be consulted to find out what the changes have been.
+
 Authors (original)
 ------------------
 
@@ -20,11 +23,9 @@ Authors (subsequent modifications)
 Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 '''
 
-from   copy import deepcopy
-from   datetime import datetime
-import requests
+from datetime import datetime
 
-from   ..exceptions import *
+from ..exceptions import CorruptedContent
 
 
 def timemap_as_dict(timemap_text, skip_errors = False):
@@ -44,6 +45,9 @@ def timemap_as_dict(timemap_text, skip_errors = False):
         last = False
 
         for uri in local_dict:
+
+            if "rel" not in local_dict[uri]:
+                raise ValueError("Missing 'rel' element in timemap")
 
             relation = local_dict[uri]["rel"]
 
@@ -93,7 +97,6 @@ def timemap_as_dict(timemap_text, skip_errors = False):
                     working_dict["mementos"]["last"]["datetime"] = mdt
 
         return working_dict
-
 
     dict_timemap = {}
 
@@ -160,9 +163,7 @@ def timemap_as_dict(timemap_text, skip_errors = False):
                 state = 3
             elif character == ',':
                 state = 0
-
                 process_local_dict(local_dict, dict_timemap)
-
             elif character == '"':
                 state = 5
             elif character.isspace():
@@ -193,7 +194,14 @@ def timemap_as_dict(timemap_text, skip_errors = False):
                 raise CorruptedContent(
                     "discovered unknown state while processing TimeMap")
 
-    process_local_dict(local_dict, dict_timemap)
+    try:
+        process_local_dict(local_dict, dict_timemap)
+    except Exception as ex:
+        if not skip_errors:
+            raise CorruptedContent(
+                "unexpected construction in timemap: " + str(ex))
+        else:
+            return dict()
 
     return dict_timemap
 

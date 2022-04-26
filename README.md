@@ -1,16 +1,16 @@
-eprints2archives<img width="12%" align="right" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-icon.png">
-================
+# eprints2archives<img width="12%" align="right" src="https://raw.githubusercontent.com/caltechlibrary/eprints2archives/main/.graphics/eprints2archives-icon.png">
 
 A program that can obtain records from an EPrints server and send them to public web archiving services such as the [the Wayback Machine at the Internet Archive](https://archive.org/web/) and others.
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg?style=flat-square)](https://choosealicense.com/licenses/bsd-3-clause)
-[![Python](https://img.shields.io/badge/Python-3.6+-brightgreen.svg?style=flat-square)](http://shields.io)
-[![Latest release](https://img.shields.io/github/v/release/caltechlibrary/eprints2archives.svg?style=flat-square&color=b44e88)](https://github.com/caltechlibrary/eprints2archives/releases)
-[![DOI](http://img.shields.io/badge/DOI-10.22002/D1.1638-blue.svg?style=flat-square)](https://data.caltech.edu/records/1638)
-[![PyPI](https://img.shields.io/pypi/v/eprints2archives.svg?style=flat-square&color=red)](https://pypi.org/project/eprints2archives/)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://choosealicense.com/licenses/bsd-3-clause)
+[![Python](https://img.shields.io/badge/Python-3.6+-brightgreen.svg?color=yellow)](http://shields.io)
+[![CodeQL](https://github.com/caltechlibrary/eprints2archives/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/caltechlibrary/eprints2archives/actions/workflows/codeql-analysis.yml)
+[![Latest release](https://img.shields.io/github/v/release/caltechlibrary/eprints2archives.svg?color=b44e88)](https://github.com/caltechlibrary/eprints2archives/releases)
+[![DOI](http://img.shields.io/badge/DOI-10.22002/D1.2042-blue.svg)](https://data.caltech.edu/records/2042)
+[![PyPI](https://img.shields.io/pypi/v/eprints2archives.svg?color=red)](https://pypi.org/project/eprints2archives/)
 
-Table of contents
------------------
+
+## Table of contents
 
 * [Introduction](#introduction)
 * [Installation](#installation)
@@ -24,8 +24,7 @@ Table of contents
 * [Acknowledgments](#authors-and-acknowledgments)
 
 
-Introduction
-------------
+## Introduction
 
 `eprints2archives` is a self-contained program to archive the web pages of an EPrints server in public web archiving sites such as the [Internet Archive](https://archive.org/web/).  It contacts an EPrints server, obtains the list of documents it serves (optionally filtered based on such things as modification date), determines the document URLs, extracts additional URLs by scraping pages under the `/view` section of the public site, and finally, sends the collected URLs to web archives.  Use-cases include archiving an server content ahead of migration to another system, and preserving contents in independent third-party archives.
 
@@ -36,27 +35,74 @@ The program is written in Python 3 and works over a network using an EPrints ser
 </p>
 
 
-Installation
-------------
+## Installation
 
-The instructions below assume you have a Python interpreter installed on your computer; if that's not the case, please first install Python version 3 and familiarize yourself with running Python programs on your system.
+The instructions below assume you have a Python interpreter version 3.6 or higher installed on your computer; if that's not the case, please first install Python and familiarize yourself with running Python programs on your system. If you are unsure of which version of Python you have, you can find out by running the following command in a terminal and inspecting the results:
+```sh
+# Note: on Windows, you may have to use "python" instead of "python3"
+python3 --version
+```
 
-On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install `eprints2archives` with [`pip`](https://pip.pypa.io/en/stable/installing/).  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
+Note: if you are using macOS Catalina (10.15) or later and have never run `python3`, then the first time you do, macOS will ask you if you want to install the macOS command-line developer tools.  Go ahead and do so, as this is the easiest way to get a recent-enough Python&nbsp;3 on those systems.
+
+
+### Approach 1: using the standalone executables
+
+Beginning with version 1.3.2, runnable self-contained single-file executables are available for select operating system and Python version combinations &ndash; to use them, you **only** need a Python&nbsp;3 interpreter and a copy of `eprints2archives`, but **do not** need to run `pip install` or other steps. Please click on the relevant heading below to learn more.
+
+<details><summary><img alt="macOS" align="bottom" height="26px" src="https://github.com/caltechlibrary/eprints2archives/raw/main/.graphics/mac-os-32.png">&nbsp;<strong>macOS</strong></summary>
+
+Visit the [eprints2archives releases page](https://github.com/caltechlibrary/eprints2archives/releases) and look for the ZIP files with names such as (e.g.) `eprints2archives-1.3.3-macos-python3.8.zip`. Then:
+1. Download the one matching your version of Python
+2. Unzip the file (if your browser did not automatically unzip it for you)
+3. Open the folder thus created (it will have a name like `eprints2archives-1.3.3-macos-python3.8`)
+4. Look inside for `eprints2archives` and move it to a location where you put other command-line programs (e.g., `/usr/local/bin`)
+
+</details><details><summary><img alt="Linux" align="bottom" height="26px" src="https://github.com/caltechlibrary/eprints2archives/raw/main/.graphics/linux-32.png">&nbsp;<strong>Linux</strong></summary>
+
+Visit the [eprints2archives releases page](https://github.com/caltechlibrary/eprints2archives/releases) and look for the ZIP files with names such as (e.g.) `eprints2archives-1.3.3-linux-python3.8.zip`. Then:
+1. Download the one matching your version of Python
+2. Unzip the file (if your browser did not automatically unzip it for you)
+3. Open the folder thus created (it will have a name like `eprints2archives-1.3.3-linux-python3.8`)
+4. Look inside for `eprints2archives` and move it to a location where you put other command-line programs (e.g., `/usr/local/bin`)
+
+</details><details><summary><img alt="Windows" align="bottom" height="26px" src="https://github.com/caltechlibrary/eprints2archives/raw/main/.graphics/os-windows-32.png">&nbsp;<strong>Windows</strong></summary>
+
+Standalone executables for Windows are not available at this time. If you are running Windows, please use one of the other methods described below.
+
+</details>
+
+
+### Approach 2: using `pip`
+
+On **Linux**, **macOS**, and **Windows** operating systems, you should be able to install or upgrade `eprints2archives` with [`pip`](https://pip.pypa.io/en/stable/installing/).  To install `eprints2archives` from the [Python package repository (PyPI)](https://pypi.org), run the following command:
 ```
 python3 -m pip install eprints2archives --upgrade
 ```
 
-As an alternative to getting it from [PyPI](https://pypi.org), you can use `pip` to install `eprints2archives` directly from GitHub, like this:
+
+### Approach 3: using `git clone`
+
+As an alternative to getting it from [PyPI](https://pypi.org), you can use `pip` to install or upgrade `eprints2archives` directly from GitHub, like this:
 ```sh
 python3 -m pip install git+https://github.com/caltechlibrary/eprints2archives.git --upgrade
 ```
 
-After installing it, on Linux and macOS systems you should end up with a program called `eprints2archives` in a location normally searched by your terminal shell.  You should be able to run `eprints2archives` from the shell like any other program.  If `eprints2archives` ended up in a location not normally searched by your terminal shell, you should still be able to invoke the program as a Python module.  For example,
 
-```shell
+## Usage
+
+Running `eprints2archives` from a terminal shell then should be as simple as running any other shell command on your system:
+
+```bash
+eprints2archives -h
+```
+
+If that fails for some reason, you should be able to run `eprints2archives` from anywhere using the normal approach for running Python modules:
+
+```bash
 python3 -m eprints2archives -h
 ```
- 
+
 On Windows, Python 3 is usually installed as just `python` instead of `python3`, and `eprints2archives` follows the Windows convention of using `/` as the option prefix instead of a dash (`-`).  So, instead of the above, you would type
 
 ```shell
@@ -64,16 +110,16 @@ python -m eprints2archives /h
 ```
 
 
-Usage
------
+### Specifying the EPrints server
 
-For help with usage at any time, run `eprints2archives` with the option `-h` (or `/h` on Windows).
+The `eprints2archives` program contacts the EPrints server whose web address is given as the value to the option `-a` (or `/a` on Windows).  A typical EPrints server REST API will have a URL of the form `https://server.institution.edu/rest`, but you can give it just `https://server.institution.edu` and `eprints2archives` will add the `/rest` part if it is missing.  Note that **a value for `-a` is required**; it cannot infer the server address on its own.
 
-`eprints2archives` contacts the EPrints server whose web address is given as the value to the option `-a` (or `/a` on Windows).  A typical EPrints server REST API will have a URL of the form `https://server.institution.edu/rest`, but you can give it just `https://server.institution.edu` and `eprints2archives` will add the `/rest` part if it is missing.  Note that **a value for `-a` is required**; it cannot infer the server address on its own.
+
+### Authentication or anonymous use
 
 Accessing some EPrints servers via the API requires supplying a user login and password to the server. By default, this program retrieves them from your operating system's user keyring/keychain. If the login and password for a given EPrints server does not exist from a previous run of `eprints2archives`, it will ask for the user name and password, and then (unless the `-K` option &ndash; or `/K` on Windows &ndash; is given) store them in your keyring/keychain so that it does not have to ask again in the future. It is also possible to supply the information directly on the command line using the `-u` and `-p` options (or `/u` and `/p` on Windows), but this is discouraged because it is insecure on multiuser computer systems. (However, if you need to reset the user name and/or password for some reason, use `-u` with a user name and let it prompt for a password again.)  
 
-If a given EPrints server does not require a user name and password, **supply blank values** when prompted for them by eprints2archives and do not use the options `-u` or `-p`. (Empty user name and password are allowed values.)
+If a given EPrints server does _not_ require a user name and password (i.e., it allows anonymous use), **supply blank values** when prompted for them by `eprints2archives` and do not use the options `-u` or `-p`. (Empty user name and password are allowed values.)
 
 
 ### How the list of records is determined
@@ -195,14 +241,12 @@ This program exits with a return code of 0 if no problems are encountered.  It r
 ```
 
 
-Known issues and limitations
-----------------------------
+## Known issues and limitations
 
 Some services impose severe rate limits on URL submissions, and there  is nothing that `eprints2archives` can do about it.  For example, at the time of this writing, [Archive.Today](https://archive.today) only allows 6 URLs to be submitted every 5 minutes.  If you plan on sending a large number of URLs, it may be more convenient to use a separate `eprints2archives` process with the `-d` option to select only one destination, and let it run in its own terminal window.
 
 
-Relationships to other similar tools
-------------------------------------
+## Relationships to other similar tools
 
 Other tools exist for sending content to web archives; some are general-purpose enough that they could be used to send EPrints server contents to web archives.  To the author's knowledge, `eprints2archives` is the only software designed specifically to work with EPrints servers to send content to multiple archiving destinations.
 
@@ -217,26 +261,22 @@ Most archiving tools work only with the [Internet Archive's Wayback Machine](htt
 [archive.today](https://github.com/dhamaniasad/archive.today) is one of the few tools for working with archives other than IA.  It is a simple command-line tool for sending content to and downloading from Archive.Today.
 
 
-Getting help
-------------
+## Getting help
 
 If you find an issue, please submit it in [the GitHub issue tracker](https://github.com/caltechlibrary/eprints2archives/issues) for this repository.
 
 
-Contributing
-------------
+## Contributing
 
 We would be happy to receive your help and participation with enhancing `eprints2archives`!  Please visit the [guidelines for contributing](CONTRIBUTING.md) for some tips on getting started.
 
 
-License
--------
+## License
 
 Software produced by the Caltech Library is Copyright (C) 2020&ndash;2021, Caltech.  This software is freely distributed under a BSD/MIT type license.  Please see the [LICENSE](LICENSE) file for more information.
 
 
-Authors and history
----------------------------
+## Authors and history
 
 This program was initially written in mid-2020, in response to discussions in Caltech's [Digital Library Development](https://www.library.caltech.edu/staff?&field_directory_department_name=Digital%20Library%20Development) group.
 
@@ -252,16 +292,15 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [CommonPy](https://github.com/caltechlibrary/commonpy) &ndash; a collection of commonly-useful Python functions
 * [cssselect](https://pypi.org/project/cssselect/) &ndash; `lxml` add-on to parse CSS3 selectors 
 * [dateparser](https://pypi.org/project/dateparser/) &ndash; parse dates in almost any string format
-* [dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [h2](https://pypi.org/project/h2) &ndash; HTTP/2 support library used by [HTTPX](https://www.python-httpx.org)
 * [httpx](https://www.python-httpx.org) &ndash; Python HTTP client library that supports HTTP/2
 * [humanize](https://github.com/jmoiron/humanize) &ndash; helps write large numbers in a more human-readable form
-* [ipdb](https://github.com/gotcha/ipdb) &ndash; the IPython debugger
 * [keyring](https://github.com/jaraco/keyring) &ndash; access the system keyring service from Python
 * [lxml](https://lxml.de) &ndash; an XML parsing library for Python
 * [plac](http://micheles.github.io/plac/) &ndash; a command line argument parser
-* [pydash]() &ndash; kitchen sink of Python utility libraries for doing “stuff” 
+* [pydash](https://github.com/dgilland/pydash) &ndash; “kitchen sink of Python utility libraries for doing ‘stuff’” 
 * [pypubsub](https://github.com/schollii/pypubsub) &ndash; a publish-and-subscribe message-passing library for Python
+* [python-dateutil](https://pypi.org/project/python-dateutil/) &ndash; additional date parsing utilities
 * [rich](https://rich.readthedocs.io/en/latest/) &ndash; library for writing styled text to the terminal
 * [setuptools](https://github.com/pypa/setuptools) &ndash; library for `setup.py`
 * [sidetrack](https://github.com/caltechlibrary/sidetrack) &ndash; simple debug logging/tracing package
@@ -271,10 +310,11 @@ The algorithm and some code for interacting with [Archive.Today](https://archive
 * [validators](https://github.com/kvesteri/validators) &ndash; data validation package for Python
 
 
-Acknowledgments
----------------
+## Acknowledgments
 
 The [vector artwork](https://thenounproject.com/term/upload/2800646/) of a cloud and arrow contained within the logo for this repository was created by [Vimal](https://thenounproject.com/vimalraj2/) from the Noun Project.  It is licensed under the Creative Commons [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) license.
+
+The icons of operating systems used on this page were obtained from [iconsdb.com](https://www.iconsdb.com/gray-icons/linux-icon.html). They are distributed under a [Creative Commons Attribution-NoDerivs 3.0](https://creativecommons.org/licenses/by-nd/3.0/) license.
 
 This work was funded by the California Institute of Technology Library.
 

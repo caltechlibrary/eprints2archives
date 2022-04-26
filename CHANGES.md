@@ -1,8 +1,22 @@
 Change log for eprints2archives
 ===============================
 
-Version 1.3.2
--------------
+## Version 1.3.4
+
+Changes in this version:
+* Fix handling of occasionally unexpected timemap result from InternetArchive.
+* Update versions of some dependencies in `requirements.txt`.
+* Add of `CITATION.cff` file.
+
+
+## Version 1.3.3
+
+* Add requirement for a package imported by another requirement but that does not, for some reason, get imported properly when a clean virtual environment is created in the process of making pyz apps.
+* Update all requirement versions to latest versions of packages. This was not done for over a year and it showed...
+* Define `console_scripts` for setuptools to produce a better wrapper script.
+
+
+## Version 1.3.2
 
 * Fix a mixhandled exception when a server returns a code 500.
 * Improve catching interrupts on Windows.
@@ -12,16 +26,14 @@ Version 1.3.2
 * Update copyright year.
 
 
-Version 1.3.1
--------------
+## Version 1.3.1
 
 * Use [Sidetrack](https://github.com/caltechlibrary/sidetrack) instead of internal `debug.py` version of the same.
 * Internally, use different approach to recording version number and other metadata.
 * Use updated release procedure codified in `Makefile`.
 
 
-Version 1.3.0
--------------
+## Version 1.3.0
 
 * Check that URLs obtained from EPrints records appear to be valid URLs, before trying to send them to web archives. (This is mostly to catch bad values in the `official_url` record field.)
 * Be more careful about which `/view/X/N.html` pages are sent.
@@ -30,15 +42,13 @@ Version 1.3.0
 * Add some more debug log statements.
 
 
-Version 1.2.2
--------------
+## Version 1.2.2
 
 * Retry network operations one time if get HTTP code 400.
 * Internal network code refactoring.
 
 
-Version 1.2.1
--------------
+## Version 1.2.1
 
 * Add missing `requirements.txt` dependency for [`h2`](https://pypi.org/project/h2) package.
 * Make parsing of malformed id ranges slightly more robust.
@@ -47,8 +57,7 @@ Version 1.2.1
 * Edit the README.md file slightly.
 
 
-Version 1.2.0
--------------
+## Version 1.2.0
 
 * In addition to the record pages, `eprints2archives` now also harvests general URLs from the server, including the top-level URL and `/view` and 2 levels of pages underneath it.  However, if a subset of records is requested, only gets those particular `/view/X/N.html` pages rather than all pages under `/view/X/`.
 * Internal changes allow it to use protocol HTTP/2, which was necessary to communicate with Archive.Today (because it appears to have stopped accepting save requests unless HTTP2 is used).
@@ -60,8 +69,7 @@ Version 1.2.0
 * Internal code refactoring.
 
 
-Version 1.1.0
---------------
+## Version 1.1.0
 
 * Include the top-level server URL among the URLs sent to archives, as well as `/view` and two levels of pages under `/view`.
 * Make sure the set of URLs sent to archives is unique.
@@ -69,7 +77,6 @@ Version 1.1.0
 * Clarify some things in the README file.
 
 
-Version 1.0.0
--------------
+## Version 1.0.0
 
 First working version.  Supports sending EPrints pages to the [Internet Archive](https://archive.org/web/) and [Archive.Today](https://archive.today).  Runs with parallel threads and handles rate limits automatically.  Currently implements a command-line interface only.
