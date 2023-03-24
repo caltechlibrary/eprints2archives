@@ -6,7 +6,6 @@ A program that can obtain records from an EPrints server and send them to public
 [![Python](https://img.shields.io/badge/Python-3.6+-brightgreen.svg?color=yellow)](http://shields.io)
 [![CodeQL](https://github.com/caltechlibrary/eprints2archives/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/caltechlibrary/eprints2archives/actions/workflows/codeql-analysis.yml)
 [![Latest release](https://img.shields.io/github/v/release/caltechlibrary/eprints2archives.svg?color=b44e88)](https://github.com/caltechlibrary/eprints2archives/releases)
-[![DOI](http://img.shields.io/badge/DOI-10.22002/D1.2042-blue.svg)](https://data.caltech.edu/records/2042)
 [![PyPI](https://img.shields.io/pypi/v/eprints2archives.svg?color=red)](https://pypi.org/project/eprints2archives/)
 
 
