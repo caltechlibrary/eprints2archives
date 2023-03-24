@@ -9,7 +9,7 @@ Michael Hucka <mhucka@caltech.edu> -- Caltech Library
 Copyright
 ---------
 
-Copyright (c) 2020-2021 by the California Institute of Technology.  This code
+Copyright (c) 2020-2023 by the California Institute of Technology.  This code
 is open-source software released under a 3-clause BSD license.  Please see the
 file "LICENSE" for more information.
 '''
@@ -65,7 +65,7 @@ class Service(object):
 
 
     def __ne__(self, other):
-        return not __eq__(self, other)
+        return not self.__eq__(self, other)
 
 
     def __lt__(self, other):

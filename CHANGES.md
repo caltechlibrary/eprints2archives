@@ -1,6 +1,16 @@
 Change log for eprints2archives
 ===============================
 
+## Version 1.3.5
+
+Changes in this version:
+* Fix bug in definition of `Service` class in `services/base.py`.
+* Update some package versions in `requirements.txt`.
+* Pin more versions of packages in `requirements.txt`.
+* Change name of runnable program to have dash between the name `eprints2archives` and the version number.
+* Updated copyright year in file headers and other places.
+
+
 ## Version 1.3.4
 
 Changes in this version:
