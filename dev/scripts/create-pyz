@@ -6,16 +6,29 @@
 # @license Please see the file named LICENSE in the project directory
 # @website https://github.com/caltechlibrary/eprints2archives
 #
-# Preliminary setup (on macOS) assumed to have been done before this is run:
+# Preliminary setup assumed to have been done before this is run:
+#
+# MacOS:
 #   brew install python@3.6
 #   brew install python@3.7
 #   brew install python@3.8
 #   brew install python@3.9
 #   brew install pyenv
-#   pyenv install 3.9.5
-#   pyenv install 3.8.10
-#   pyenv install 3.7.10
 #   pyenv install 3.6.11
+#   pyenv install 3.7.10
+#   pyenv install 3.8.10
+#   pyenv install 3.9.5
+#
+# Ubuntu 18:
+#   apt install curl wget git llvm build-essential libssl-dev 
+#   apt install libsqlite3-dev xz-utils tk-dev libffi-dev liblzma-dev
+#   apt install zlib1g-dev libbz2-dev libreadline-dev 
+#   apt install libncurses5-dev libncursesw5-dev
+#   curl https://pyenv.run | bash
+#   pyenv install 3.6.11
+#   pyenv install 3.7.10
+#   pyenv install 3.8.10
+#   pyenv install 3.9.5
 # =============================================================================
 
 from   datetime import date
@@ -187,14 +200,13 @@ if int(py_minor_version) < 6:
 
 py_short_version = '.'.join(py_version.split('.')[0:2])
 
-
 with open('setup.cfg', 'r') as config_file:
     for line in config_file.readlines():
         if line.startswith('version'):
             h_version = line.split('=')[1].strip()
 
 os      = run("uname -s | tr '[A-Z]' '[a-z]' | sed 's/darwin/macos/'", True).strip()
-dirname = f'eprints2archives{h_version}-{os}-python{py_short_version}'
+dirname = f'eprints2archives-{h_version}-{os}-python{py_short_version}'
 outdir  = join(dest, dirname)
 outname = f'eprints2archives'
 today   = str(date.today())
@@ -221,7 +233,7 @@ run(f'~/.pyenv/shims/shiv -p "{hashbang}" -c eprints2archives -o "{outname}" -E 
 
 inform(f'Creating zip file')
 zip_file = dirname + '.zip'
-comment  = _ZIP_COMMENTS_FMT.format(today, h_version, py_version, os)
+comment  = _ZIP_COMMENTS_FMT.format(today, h_version, py_short_version, os)
 readme   = _README_FMT.format(today, h_version, py_version, os)
 with zipfile.ZipFile(zip_file, 'w', ZIP_STORED) as zf:
     zf.write(outname, join(dirname, outname))
