@@ -21,7 +21,7 @@ file "LICENSE" for more information.
 #  |    by the Makefile. Manual changes to these values will be lost.      |
 #  ╰────────────────────── Notice ── Notice ── Notice ─────────────────────╯
 
-__version__     = '1.3.4'
+__version__     = '1.3.5'
 __description__ = 'Send EPrints URLs to the Internet Archive and other archives'
 __url__         = 'https://github.com/caltechlibrary/eprints2archives'
 __author__      = 'Michael Hucka'
